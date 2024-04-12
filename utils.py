@@ -208,7 +208,7 @@ def get_skyaera(polygon, seed=42):
     return mask.sum()*full_sky/mask.size
 
 
-def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, polygon_dir='/pscratch/sd/a/arocher/4MOST'):
+def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, polygon_dir='mask_fp'):
     '''
         Return mask where True values are position inside the 4most S8 footprint. Caveat: The initial polygons are rotated by 115 degrees.  
         
@@ -230,7 +230,7 @@ def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, 
         if_deg: bool,  default: True
             Set True if ra and dec are given in degrees.
         
-        polygon_dir: str, default:'/pscratch/sd/a/arocher/4MOST'
+        polygon_dir: str, default:'mask_fp'
             Path of the directory where polygons are stored
 
         Returns
@@ -287,7 +287,7 @@ def random_point_on_sky(size):
     return ra, c.dec.deg
 
 
-def get_4most_skyaera(regions=['ngc', 'sgc'], bg_fp=False, polygon_dir='/pscratch/sd/a/arocher/4MOST', seed=42):
+def get_4most_skyaera(regions=['ngc', 'sgc'], bg_fp=False, polygon_dir='mask_fp', seed=42):
     '''
         Get sky aera for a given polygon 
     '''
@@ -540,7 +540,7 @@ def _get_sgr_stream(rot=120):
     return ra_bottom[index_sgr_bottom], dec_bottom[index_sgr_bottom], ra_top[index_sgr_top], dec_top[index_sgr_top]
 
 
-def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir='/pscratch/sd/a/arocher/4MOST/',
+def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir='mask_fp',
               galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False,
               rot=115, projection='mollweide', figsize=(11.0, 7.0), xpad=.5, labelpad=5, xlabel_labelpad=10.0, ycb_pos=-0.05, cmap='RdYlBu_r', ticks=None, tick_labels=None):
     """
