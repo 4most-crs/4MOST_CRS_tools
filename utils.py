@@ -690,7 +690,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                 ttt = tt[mm] - np.radians(115) + np.radians(rot)
                 ttt = np.remainder(ttt + np.pi*2, np.pi*2)
                 ttt[ttt > np.pi] -= np.pi*2
-                ax.scatter(ttt, projection_dec([-20]*100)[mm], ls=0.8, c='darkred', marker='-', zorder=10, label='BG cut')
+                ax.plot(ttt, projection_dec([-20]*100)[mm], ls=0.8, c='darkred', ls='--', zorder=10, label='BG cut')
             pol[0] -= np.radians(115)
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
