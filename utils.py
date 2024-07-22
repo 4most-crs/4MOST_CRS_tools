@@ -11,6 +11,7 @@ import astropy.coordinates as coord
 from astropy.coordinates import SkyCoord, frame_transform_graph
 from astropy.coordinates.matrix_utilities import rotation_matrix, matrix_product, matrix_transpose
 from astropy.table import Table
+import glob
 # to avoid this warning:
 # WARNING: AstropyDeprecationWarning: Transforming a frame instance to a frame class (as opposed to another frame instance)
 # will not be supported in the future.  Either explicitly instantiate the target frame, or first convert the source frame instance
@@ -575,8 +576,8 @@ def _get_sgr_stream(rot=120):
     return ra_bottom[index_sgr_bottom], dec_bottom[index_sgr_bottom], ra_top[index_sgr_top], dec_top[index_sgr_top]
 
 
-def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir='/pscratch/sd/a/arocher/4MOST/mask_fp',
-              galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False,
+def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir='/pscratch/sd/a/arocher/4MOST/mask_fp', euclid_fp=False,
+              galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False,
               rot=115, projection='mollweide', figsize=(11.0, 7.0), xpad=.5, labelpad=5, xlabel_labelpad=10.0, ycb_pos=-0.05, cmap='RdYlBu_r', ticks=None, tick_labels=None):
     """
     From E. Chaussidon
@@ -631,7 +632,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
     plt.figure(1)
     m = hp.ma(hmap) if whmap is None else hp.ma(whmap/hmap)
     mask_2 = np.zeros(len(m))
-    mask_2[m == 0] = 1
+    mask_2[m <= 0] = 1
     m.mask=mask_2
     map_to_plot = hp.cartview(m, nest=nest, rot=rot, flip='geo', fig=1, return_projected_map=True)
     plt.close()
@@ -689,13 +690,51 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                 ttt = tt[mm] - np.radians(115) + np.radians(rot)
                 ttt = np.remainder(ttt + np.pi*2, np.pi*2)
                 ttt[ttt > np.pi] -= np.pi*2
-                ax.plot(ttt, projection_dec([-20]*100)[mm], c='darkred', ls='-', zorder=10, label='BG cut')
+                ax.scatter(ttt, projection_dec([-20]*100)[mm], ls=0.8, c='darkred', marker='-', zorder=10, label='BG cut')
             pol[0] -= np.radians(115)
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color="r", lw=2, zorder=10)
-        ax.plot(pol[0], pol[1], color="r", lw=2, zorder=10, label='4MOST')
+            ax.plot(pol[0], pol[1], color="darkred", lw=2, zorder=10)
+        ax.plot(pol[0], pol[1], color="darkred", lw=2, zorder=10, label='4MOST')
+
+    if qso_dr10_fp:
+        pol = np.load(os.path.join(mask_dir, 'qso_dr10_sgc_poly.npy'), allow_pickle=True).T 
+        pol[0] += np.radians(rot)
+        pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
+        pol[0][pol[0] > np.pi] -= np.pi*2
+        ax.plot(pol[0], pol[1], color="darkblue", lw=2, zorder=10, label='DR10')
+
+    if atlas_fp:
+        for reg in ['ngc','sgc']:
+            pol = np.load(os.path.join(mask_dir, f'atlas_{reg}_poly.npy'), allow_pickle=True).T 
+            pol[0] -= np.radians(115)
+            pol[0] += np.radians(rot)
+            pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
+            pol[0][pol[0] > np.pi] -= np.pi*2
+            ax.plot(pol[0], pol[1], color="steelblue", lw=2, zorder=10)
+        ax.plot(pol[0], pol[1], color="steelblue", lw=2, zorder=10, label='ATLAS')
+
+    if qso_fp:
+        for name, rot_init in zip(['atlas_ngc_poly.npy', 'qso_sgc_poly.npy'], [115, 0]):
+            pol = np.load(os.path.join(mask_dir, name), allow_pickle=True).T 
+            pol[0] -= np.radians(rot_init)
+            pol[0] += np.radians(rot)
+            pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
+            pol[0][pol[0] > np.pi] -= np.pi*2
+            ax.plot(pol[0], pol[1], color="green", lw=2, zorder=10)
+        ax.plot(pol[0], pol[1], color="green", lw=2, zorder=10, label='QSO')
+
+    if  euclid_fp:
+        for name in glob.glob(os.path.join(mask_dir, '*euclid*')):
+            rot_init = 0 if 'sgc' in name else -100
+            pol = np.load(name, allow_pickle=True).T 
+            pol[0] -= np.radians(rot_init)
+            pol[0] += np.radians(rot)
+            pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
+            pol[0][pol[0] > np.pi] -= np.pi*2
+            ax.plot(pol[0], pol[1], color="gold", lw=2, zorder=10)
+        ax.plot(pol[0], pol[1], color="gold", lw=2, zorder=10, label='Euclid')
 
         
     if desi_footprint:
@@ -704,6 +743,8 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             sel = d["CAP"] == cap
             _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="k", lw=2, zorder=10)
         ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="k", lw=2, zorder=10, label='DESI Y5')
+
+
 
     tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
     tick_labels = np.remainder(tick_labels + 360 + rot, 360)
@@ -721,21 +762,21 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
     if title:
         plt.title(title)
     if filename is not None:
-        plt.savefig(filename, dpi=400)
+        plt.savefig(filename, facecolor='w', bbox_inches='tight', pad_inches=0.1)
     if show:
         plt.show()
     else:
         plt.close()
         
-def create_hp_map(ra, dec, nside=128, weight=None, lonlat=True, nest=True):
+def create_hp_map(ra, dec, nside=128, weight=None, lonlat=True, nest=False):
     pix = hp.ang2pix(nside, ra, dec, lonlat=lonlat, nest=nest)
     hp_map = np.bincount(pix, weights=weight, minlength=hp.nside2npix(nside)) * 1.0
     hp_map = hp_map / hp.nside2pixarea(nside, degrees=True)
     return hp_map
 
 
-def healpix_in_sgc(nside):
-    theta, phi = hp.pix2ang(nside, range(hp.nside2npix(nside)),nest=True)  
+def healpix_in_sgc(nside,nest=False):
+    theta, phi = hp.pix2ang(nside, range(hp.nside2npix(nside)),nest=nest)  
     ra= phi*180./np.pi
     dec = 90.-(theta*180./np.pi)
     mask_NGC = SkyCoord(ra,dec , frame='icrs', unit='deg').transform_to('galactic').b > 0
