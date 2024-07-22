@@ -31,18 +31,34 @@ def get_4most_bg_old_vista_sel(j,k,w1,r, jmin = 16, jmax= 18.25, rmax= 22):
 
 
 def get_4most_bg_new_sel(cat, mag_r_lim=19):
+    
     not_in_gaia = cat['REF_CAT'] == '  '
     raw_mag_r = 22.5-2.5*np.log10(cat['FLUX_R'])
     
     mag_r = 22.5-2.5*np.log10(cat['FLUX_R']/cat['MW_TRANSMISSION_R'])
     mag_z = 22.5-2.5*np.log10(cat['FLUX_Z']/cat['MW_TRANSMISSION_Z'])
+    sel = ((cat['GAIA_PHOT_G_MEAN_MAG'] - raw_mag_r) > 0.6) & ~not_in_gaia
+    sel |= not_in_gaia
 
-    sel &= ~mask
-    
     #maskbit arround bright stars
     sel &= ~(cat['MASKBITS'] & 2**1 > 0) 
     #maskbit arround large galaxies
     sel &= ~(cat['MASKBITS'] & 2**12 > 0)
+    sel &= ~(cat['MASKBITS'] & 2**13 > 0)
+
+    #fiber mag cut
+    fib_mag_r = 22.5-2.5*np.log10(cat['FIBERFLUX_R']/cat['MW_TRANSMISSION_R'])
+    mask = mag_r < 17.8
+    mask &= fib_mag_r < (22.9 + (mag_r - 17.8))
+    mask1 = (mag_r > 17.8) & (mag_r < 20)
+    mask1 &= fib_mag_r < 22.9
+    sel &= (mask|mask1)
+
+    # cut spurious objects
+    mag_g = 22.5-2.5*np.log10(cat['FLUX_G']/cat['MW_TRANSMISSION_G'])
+    mask = (mag_g-mag_r < -1) | (mag_g-mag_r > 4)
+    mask |= (mag_r-mag_z < -1) | (mag_r-mag_z > 4)
+    sel &= ~mask
 
     # cut according Nobs
     mask = (cat['NOBS_G'] == 0) | (cat['NOBS_R'] == 0) | (cat['NOBS_Z'] == 0)
@@ -53,13 +69,22 @@ def get_4most_bg_new_sel(cat, mag_r_lim=19):
     mask = (mag_r > 12) & (fibtot_mag_r < 15) 
     sel &= ~mask
 
+    # Additional photometric cut
     sel &= mag_r-mag_z < (0.9*(mag_g-mag_r)-0.2)
-
+    
+    # Additionnal cut on stars with parallax or pmra or pmdec !=0 and snr >3
+    snr_par = np.abs(cat['PARALLAX']*np.sqrt(cat['PARALLAX_IVAR']))
+    snr_pmra = np.abs(cat['PMRA']*np.sqrt(cat['PMRA_IVAR']))
+    snr_pmdec = np.abs(cat['PMDEC']*np.sqrt(cat['PMDEC_IVAR']))
+    mask = cat['PARALLAX'] != 0
+    mask &= (snr_pmra > 3) | (snr_pmra > 3) | (snr_pmdec > 3) 
+    sel &= ~mask
+    # Mag cut
     sel &= mag_r < mag_r_lim
     return sel
 
 
-def get_4most_lrg_new_sel(data, shift = 0.17): #shift = 0.0825
+def get_4most_lrg_new_sel(data, shift = 0.11): #shift = 0.0825
 
     gflux = data['FLUX_G']
     gMW = data['MW_TRANSMISSION_G']
@@ -93,10 +118,10 @@ def get_4most_lrg_new_sel(data, shift = 0.17): #shift = 0.0825
     #mask_tot_ls &= (photz > 0) & (photz < 1.4)
 
     # cut according Nobs,
-    mask = (data['NOBS_G'] == 0) | (data['NOBS_R'] == 0) | (data['NOBS_Z'] == 0)
+    mask = (data['NOBS_G'] == 0) | (data['NOBS_R'] == 0) | (data['NOBS_Z'] == 0) | (data['NOBS_W1'] == 0)
     mask_tot_ls &= ~mask
     # cut according bad photometry
-    mask = (data['FLUX_IVAR_R'] < 0) | (data['FLUX_IVAR_Z'] < 0) | (data['FLUX_IVAR_W1'] < 0)
+    mask = (data['FLUX_IVAR_R'] < 0) | (data['FLUX_IVAR_Z'] < 0) | (data['FLUX_IVAR_W1'] < 0) | (data['FLUX_G'] < 0)
     mask_tot_ls &= ~mask
 
     # Additionnal cuts from the DESI LRG TS
@@ -104,11 +129,21 @@ def get_4most_lrg_new_sel(data, shift = 0.17): #shift = 0.0825
     mask_tot_ls &= data['GAIA_PHOT_G_MEAN_MAG'] < 18 
     mask_tot_ls &= ~(data['MASKBITS'] & 2**1 > 0)
     mask_tot_ls &= ~(data['MASKBITS'] & 2**12 > 0)
-
+    mask_tot_ls &= ~(data['MASKBITS'] & 2**13 > 0)
+    
+    # Additionnal cut on stars with parallax or pmra or pmdec !=0 and snr >3
+    snr_par = np.abs(data['PARALLAX']*np.sqrt(data['PARALLAX_IVAR']))
+    snr_pmra = np.abs(data['PMRA']*np.sqrt(data['PMRA_IVAR']))
+    snr_pmdec = np.abs(data['PMDEC']*np.sqrt(data['PMDEC_IVAR']))
+    mask = data['PARALLAX'] != 0
+    mask &= (snr_par > 3) | (snr_pmra > 3) | (snr_pmdec > 3) 
+    mask_tot_ls &= ~mask
+    
     return mask_tot_ls
 	
 
 def get_desi_bright_bgs_sel(cat, mag_r_lim=19.5):
+    
     not_in_gaia = cat['REF_CAT'] == '  '
     raw_mag_r = 22.5-2.5*np.log10(cat['FLUX_R'])
     mag_r = 22.5-2.5*np.log10(cat['FLUX_R']/cat['MW_TRANSMISSION_R'])
@@ -208,7 +243,7 @@ def get_skyaera(polygon, seed=42):
     return mask.sum()*full_sky/mask.size
 
 
-def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, polygon_dir='mask_fp'):
+def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, polygon_dir='/pscratch/sd/a/arocher/4MOST/mask_fp'):
     '''
         Return mask where True values are position inside the 4most S8 footprint. Caveat: The initial polygons are rotated by 115 degrees.  
         
@@ -230,7 +265,7 @@ def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, 
         if_deg: bool,  default: True
             Set True if ra and dec are given in degrees.
         
-        polygon_dir: str, default:'mask_fp'
+        polygon_dir: str, default:'/pscratch/sd/a/arocher/4MOST'
             Path of the directory where polygons are stored
 
         Returns
@@ -287,7 +322,7 @@ def random_point_on_sky(size):
     return ra, c.dec.deg
 
 
-def get_4most_skyaera(regions=['ngc', 'sgc'], bg_fp=False, polygon_dir='mask_fp', seed=42):
+def get_4most_skyaera(regions=['ngc', 'sgc'], bg_fp=False, polygon_dir='/pscratch/sd/a/arocher/4MOST/mask_fp', seed=42):
     '''
         Get sky aera for a given polygon 
     '''
@@ -540,7 +575,7 @@ def _get_sgr_stream(rot=120):
     return ra_bottom[index_sgr_bottom], dec_bottom[index_sgr_bottom], ra_top[index_sgr_top], dec_top[index_sgr_top]
 
 
-def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir='mask_fp',
+def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir='/pscratch/sd/a/arocher/4MOST/mask_fp',
               galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False,
               rot=115, projection='mollweide', figsize=(11.0, 7.0), xpad=.5, labelpad=5, xlabel_labelpad=10.0, ycb_pos=-0.05, cmap='RdYlBu_r', ticks=None, tick_labels=None):
     """
@@ -654,7 +689,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                 ttt = tt[mm] - np.radians(115) + np.radians(rot)
                 ttt = np.remainder(ttt + np.pi*2, np.pi*2)
                 ttt[ttt > np.pi] -= np.pi*2
-                ax.scatter(ttt, projection_dec([-20]*100)[mm], s=5, c='r', marker='.', zorder=10, label='BG cut')
+                ax.plot(ttt, projection_dec([-20]*100)[mm], c='darkred', ls='-', zorder=10, label='BG cut')
             pol[0] -= np.radians(115)
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
@@ -686,17 +721,25 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
     if title:
         plt.title(title)
     if filename is not None:
-        plt.savefig(filename)
+        plt.savefig(filename, dpi=400)
     if show:
         plt.show()
     else:
         plt.close()
         
-def create_hp_map(ra, dec, nside=128, weight=None, lonlat=True):
-    pix = hp.ang2pix(nside, ra, dec, lonlat=lonlat, nest=False)
+def create_hp_map(ra, dec, nside=128, weight=None, lonlat=True, nest=True):
+    pix = hp.ang2pix(nside, ra, dec, lonlat=lonlat, nest=nest)
     hp_map = np.bincount(pix, weights=weight, minlength=hp.nside2npix(nside)) * 1.0
     hp_map = hp_map / hp.nside2pixarea(nside, degrees=True)
     return hp_map
 
 
+def healpix_in_sgc(nside):
+    theta, phi = hp.pix2ang(nside, range(hp.nside2npix(nside)),nest=True)  
+    ra= phi*180./np.pi
+    dec = 90.-(theta*180./np.pi)
+    mask_NGC = SkyCoord(ra,dec , frame='icrs', unit='deg').transform_to('galactic').b > 0
+    return mask_NGC
 
+def ra_dec_in_sgc(ra, dec, unit='deg'):
+    return SkyCoord(ra, dec, frame='icrs', unit=unit).transform_to('galactic').b > 0
