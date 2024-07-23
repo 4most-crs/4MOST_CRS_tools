@@ -19,7 +19,9 @@ import glob
 import warnings
 from astropy.utils.exceptions import AstropyDeprecationWarning
 warnings.simplefilter('ignore', category=AstropyDeprecationWarning)
-
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import GroupKFold
+from sklearn.ensemble import RandomForestRegressor
 
 # 4most bg & lrg, re-tuned cuts (27Feb2020)
 def get_4most_bg_old_vista_sel(j,k,w1,r, jmin = 16, jmax= 18.25, rmax= 22):
@@ -576,7 +578,7 @@ def _get_sgr_stream(rot=120):
     return ra_bottom[index_sgr_bottom], dec_bottom[index_sgr_bottom], ra_top[index_sgr_top], dec_top[index_sgr_top]
 
 
-def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir='/pscratch/sd/a/arocher/4MOST/mask_fp', euclid_fp=False,
+def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir='mask_fp', euclid_fp=False,
               galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False,
               rot=115, projection='mollweide', figsize=(11.0, 7.0), xpad=.5, labelpad=5, xlabel_labelpad=10.0, ycb_pos=-0.05, cmap='RdYlBu_r', ticks=None, tick_labels=None):
     """
@@ -690,7 +692,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                 ttt = tt[mm] - np.radians(115) + np.radians(rot)
                 ttt = np.remainder(ttt + np.pi*2, np.pi*2)
                 ttt[ttt > np.pi] -= np.pi*2
-                ax.plot(ttt, projection_dec([-20]*100)[mm], ls=0.8, c='darkred', ls='--', zorder=10, label='BG cut')
+                ax.plot(ttt, projection_dec([-20]*100)[mm], lw=0.8, c='darkred', ls='--', zorder=10, label='BG cut')
             pol[0] -= np.radians(115)
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
@@ -726,15 +728,15 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         ax.plot(pol[0], pol[1], color="green", lw=2, zorder=10, label='QSO')
 
     if  euclid_fp:
-        for name in glob.glob(os.path.join(mask_dir, '*euclid*')):
-            rot_init = 0 if 'sgc' in name else -100
+        for name in glob.glob(os.path.join(mask_dir, '*euclid*footprint*')):
+            rot_init = 110 if 'sgc' in name else 115
             pol = np.load(name, allow_pickle=True).T 
             pol[0] -= np.radians(rot_init)
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color="gold", lw=2, zorder=10)
-        ax.plot(pol[0], pol[1], color="gold", lw=2, zorder=10, label='Euclid')
+            ax.plot(pol[0], pol[1], color="darkorange", lw=2, zorder=10)
+        ax.plot(pol[0], pol[1], color="darkorange", lw=2, zorder=10, label='Euclid')
 
         
     if desi_footprint:
@@ -784,3 +786,78 @@ def healpix_in_sgc(nside,nest=False):
 
 def ra_dec_in_sgc(ra, dec, unit='deg'):
     return SkyCoord(ra, dec, frame='icrs', unit=unit).transform_to('galactic').b > 0
+
+
+
+
+def run_sys_regression(regression_type, X_train, Y_train, X_eval, keep_to_train, nfold=6, use_kfold = False):
+     if use_kfold: 
+        return run_nfold_regression(regression_type, nfold, X_train, Y_train, keep_to_train, nside = 128)
+     else:
+        return run_regression(regression_type, X_train, Y_train, X_eval, normalize=True)
+
+def run_regression(regression_type, X_train, Y_train, X_eval, normalize=True):
+    regressor = LinearRegression() if regression_type.upper() == 'LINEAR' else RandomForestRegressor()
+    normalize = True  if regression_type.upper() == 'LINEAR' else False
+    X_for_training = X_train.copy()
+    if normalize:
+        mean, std = X_train.mean(axis=0), X_train.std(axis=0)
+        X_for_training = (X_train - mean) / std
+        X_eval = (X_eval - mean) / std
+    regressor.fit(X_for_training, Y_train)
+    Y_pred = regressor.predict(X_eval)
+    return Y_pred
+
+
+def build_kfold(kfold, pixels, groups):
+        """
+        Build the folding of pixels with scikit-learn's :class:`~sklearn.model_selection.GroupKfold` using a specific grouping given by group.
+        All pixels in the same group will be in the same fold.
+
+        Parameters
+        ----------
+        kfold : GroupKfold
+            scikit-learn class with split method to build the group k-fold.
+        pixels : array like
+            List of pixels which must be splitted in k-fold.
+        groups : array like
+            Same size as pixels. It contains the group label for each pixel in pixels.
+            All pixels in the same group will be in the same fold.
+
+        Returns
+        -------
+        index : list of list
+            For each fold, the index list of pixels belonging to that fold.
+        """
+        index = []
+        for index_train, index_test in kfold.split(pixels, groups=groups):
+            index += [index_test]
+        return index
+
+
+def run_nfold_regression(regression_type, nfold, X_train, Y_train, keep_to_train, nside = 128):
+
+    size_group = 1000 * (nside / 256)**2  # define to have ~ 52 deg**2 for each patch (ie) group   
+
+    kfold = GroupKFold(n_splits=nfold)
+    pixels = np.arange(hp.nside2npix(nside))[keep_to_train]
+    groups = [i // size_group for i in range(pixels.size)]
+    index = build_kfold(kfold, pixels, groups)
+    Y_predkfolf = np.zeros(pixels.size)
+
+    for i in range(nfold):
+        fold_index = index[i]
+        # select row for the training i.e. remove fold index
+        X_fold, Y_fold = np.delete(X_train, fold_index, axis=0), np.delete(Y_train, fold_index)
+        # select row for the evaluation
+        X_eval_fold = X_train[fold_index]
+        print(f'nflod {i} is running')
+        Y_predkfolf[fold_index] = run_regression(regression_type, X_fold, Y_fold, X_eval_fold, normalize=None)
+        print(f'nflod {i} done')
+    return Y_predkfolf
+
+
+def apply_mask_to_hpmap(hpmap, mask):
+    hpmap_mask = hpmap.copy()
+    hpmap_mask[~mask] = 0
+    return hpmap_mask
