@@ -729,7 +729,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
 
     if  euclid_fp:
         for name in glob.glob(os.path.join(mask_dir, '*euclid*footprint*')):
-            rot_init = 110 if 'sgc' in name else 115
+            rot_init = 110 
             pol = np.load(name, allow_pickle=True).T 
             pol[0] -= np.radians(rot_init)
             pol[0] += np.radians(rot)
