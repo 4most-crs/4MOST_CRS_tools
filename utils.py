@@ -861,3 +861,61 @@ def apply_mask_to_hpmap(hpmap, mask):
     hpmap_mask = hpmap.copy()
     hpmap_mask[~mask] = 0
     return hpmap_mask
+
+
+
+def get_wmap(targets, features_pixmap, mask_pixmap, tracer, regions=['DECALS', 'DES'], regression_type = 'Linear', nfold = 6, use_kfold = False,
+             feature_names = ['EBV', 'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z', 'PSFDEPTH_W1', 'PSFSIZE_G', 'PSFSIZE_R', 'PSFSIZE_Z']):
+    
+    if regression_type.upper() =='RF':
+        use_kfold=True
+    w = np.zeros_like(targets)
+    if isinstance(regions, str):
+        regions=[regions]
+
+    if tracer=='LRG':
+        feature_names = ['EBV', 'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z', 'PSFDEPTH_W1', 'PSFSIZE_G', 'PSFSIZE_R', 'PSFSIZE_Z']
+    elif tracer == 'BG':
+        feature_names = ['STARDENS', 'EBV', 'GALDEPTH_R', 'GALDEPTH_Z', 'GALDEPTH_G', 'PSFSIZE_R', 'PSFSIZE_G', 'PSFSIZE_Z']
+
+    for reg in regions:
+        if reg.upper() == 'DECALS':
+            region = ~mask_pixmap['ISDES'] & mask_pixmap['IS4MOST_LRG']
+        elif reg.upper() == 'DES':
+            region = mask_pixmap['ISDES']
+
+        fracarea = features_pixmap['FRACAREA_12290']
+
+        keep_to_train = (fracarea > np.quantile(fracarea[fracarea>0], q=0.05)) & (targets > 0) & region 
+
+        region_to_pred = keep_to_train & mask_pixmap['IS4MOST_LRG']
+
+        #utils.plot_moll(utils.apply_mask_to_hpmap(targets, mask=keep_to_train), rot=115, min=300, max=600, desi_footprint=False, fourmost_footprint=True, label='deg-2', nest=True)
+
+        normalized_targets = np.zeros_like(targets)
+        mean_targets_density_estimators = np.mean(targets[keep_to_train] / fracarea[keep_to_train])
+        normalized_targets[keep_to_train] = targets[keep_to_train] / (fracarea[keep_to_train] * mean_targets_density_estimators)
+
+        #utils.plot_moll(normalized_targets, rot=115, min=0.5, max=1.5, desi_footprint=False, fourmost_footprint=True, label='deg-2', nest=True)
+
+
+        X = np.vstack([features_pixmap[v] for v in feature_names]).T
+        Y = normalized_targets
+        X_train, Y_train, X_eval = X[keep_to_train], Y[keep_to_train], X[region_to_pred]
+
+        Y_pred = np.zeros_like(targets)
+
+        fin_mask = keep_to_train if use_kfold else region_to_pred
+        Y_pred[fin_mask] = run_sys_regression(regression_type, X_train, Y_train, X_eval, keep_to_train, nfold=nfold, use_kfold = use_kfold)
+
+        w[region_to_pred] = 1.0 / Y_pred[region_to_pred]
+    return w
+
+def get_features(tracer):
+    if tracer=='LRG':
+        feature_names = ['EBV', 'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z', 'PSFDEPTH_W1', 'PSFSIZE_G', 'PSFSIZE_R', 'PSFSIZE_Z']
+    elif tracer == 'BG':
+        feature_names = ['STARDENS', 'EBV', 'GALDEPTH_R', 'GALDEPTH_Z', 'GALDEPTH_G', 'PSFSIZE_R', 'PSFSIZE_G', 'PSFSIZE_Z']
+    else:
+        raise(f'{tracer} not known only LRG or BG')
+    return feature_names
