@@ -880,7 +880,7 @@ def get_wmap(targets, features_pixmap, mask_pixmap, tracer, regions=['DECALS', '
 
     for reg in regions:
         if reg.upper() == 'DECALS':
-            region = ~mask_pixmap['ISDES'] & mask_pixmap['IS4MOST_LRG']
+            region = ~mask_pixmap['ISDES'] & mask_pixmap[f'IS4MOST_{tracer}']
         elif reg.upper() == 'DES':
             region = mask_pixmap['ISDES']
 
@@ -888,7 +888,7 @@ def get_wmap(targets, features_pixmap, mask_pixmap, tracer, regions=['DECALS', '
 
         keep_to_train = (fracarea > np.quantile(fracarea[fracarea>0], q=0.05)) & (targets > 0) & region 
 
-        region_to_pred = keep_to_train & mask_pixmap['IS4MOST_LRG']
+        region_to_pred = keep_to_train & mask_pixmap[f'IS4MOST_{tracer}']
 
         #utils.plot_moll(utils.apply_mask_to_hpmap(targets, mask=keep_to_train), rot=115, min=300, max=600, desi_footprint=False, fourmost_footprint=True, label='deg-2', nest=True)
 
@@ -992,3 +992,8 @@ def plot_systmematics(targets_map, features_pixmap, feature_names=_all_feature_n
     if savename is not None:
         fig.savefig(savename)
     fig.show()
+
+def get_weight_from_wmap(ra, dec, wmap, nest=True, lonlat=True):
+    nside = hp.npix2nside(wmap.size)
+    ipix = hp.ang2pix(nside, ra, dec, nest=nest, lonlat=lonlat)
+    return wmap[ipix]
