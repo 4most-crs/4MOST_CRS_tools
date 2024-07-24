@@ -919,3 +919,76 @@ def get_features(tracer):
     else:
         raise(f'{tracer} not known only LRG or BG')
     return feature_names
+
+
+_all_feature_names = ['STARDENS', 'EBV', 'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z', 'PSFDEPTH_W1',
+                      'PSFSIZE_G', 'PSFSIZE_R', 'PSFSIZE_Z', 'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z']
+_all_feature_label = [r'$\log_{10}$(Stellar Density)', 'E(B-V)', r'PSF Depth in $g$-band', r'PSF Depth in $r$-band', r'PSF Depth in $z$-band', r'PSF Depth in $W1$-band', 
+                  r'PSF Size in $g$-band', r'PSF Size in $r$-band', r'PSF Size in $z$-band', r'Gal Depth in $g$-band', r'Gal Depth in $r$-band', r'Gal Depth in $z$-band']
+_all_feature_labels_dict = dict(zip(_all_feature_names, _all_feature_label))
+
+
+def plot_systmematics(targets_map, features_pixmap, feature_names=_all_feature_names, labels_map=None, ylim=0.2, nb_rows=3, fig_title=None, savename=None):
+    
+    nb_cols = (len(feature_names)+(nb_rows-1))//nb_rows
+    fig,axx = plt.subplots(nb_rows,nb_cols,figsize=(nb_cols*4,nb_rows*3), sharey=True)
+    axes=axx.flatten()
+    if fig_title:
+        fig.suptitle(fig_title, fontsize=15)
+
+    if not isinstance(targets_map,list):
+        targets_map = [targets_map]
+    if not isinstance(feature_names,list):
+        feature_names = [feature_names]
+    
+    if labels_map is None:
+        labels_map = [None]*len(targets_map)
+    if not isinstance(labels_map,list):
+        labels_map = [labels_map]
+
+
+    for feature, ax in zip(feature_names, axes):
+        for (i, tar), label in zip(enumerate(targets_map), labels_map):
+            nbins=25
+            #keep_tot = hpmap != 0.0
+            feature_map = features_pixmap[feature].copy()
+            keep_tot = (tar!=0) & (feature_map!=0)
+            feature_map = feature_map[keep_tot]
+
+            #n_bar = np.mean(hpmap[keep_tot])
+            n_bar =np.mean(tar[keep_tot])
+            
+            if 'DEPTH' in feature: 
+                feature_map =-2.5*(np.log10(5/np.sqrt(feature_map))-9)
+            if 'STARDENS' in feature:
+                feature_map = np.log10(feature_map)
+            
+            boundary = np.quantile(feature_map, q=[0.02,0.98])
+            counts, bins = np.histogram(feature_map, bins=nbins, range=boundary)
+            cbin = 0.5*(bins[1:]+bins[:-1])
+            keep_all = [np.all([feature_map>=bins[i], feature_map<bins[i+1]], axis=0) for i in range(nbins)]
+            mean, std = np.array([np.mean((tar[keep_tot][mm]/n_bar)[tar[keep_tot][mm]/n_bar>0.1]) for mm in keep_all]), [np.std(tar[keep_tot][mm]/n_bar)/np.sqrt(mm.sum()) for mm in keep_all]
+            
+                
+
+            ax.errorbar(cbin, mean/mean.mean() -1, np.hstack(std), fmt='.', ls='-', color=f'C{i}', label=label)
+            ax.axhline(0, ls='--', lw=1.2, c='k')
+            ax.grid()
+            ax.set_xlabel(_all_feature_labels_dict[feature], fontsize=12)
+            ax.set_ylim(-ylim,ylim)
+            ax.grid(True)
+
+            normalisation = counts.sum()
+            x_hist, y_hist = np.ones(2*nbins), np.ones(2*nbins)
+            x_hist[::2], x_hist[1::2] = bins[:-1], bins[1:]
+            y_hist[::2], y_hist[1::2] = counts, counts
+            shift = -ylim
+            ax.plot(x_hist, y_hist/normalisation+shift, color=f'C{i}')
+            ax.fill_between(x_hist, y_hist/normalisation+shift, y2=shift, alpha=0.2, color=f'C{i}')
+
+    [axx[i][0].set_ylabel(r'$\frac{n-\bar n}{\bar n}$', fontsize=12) for i in range(len(axx))]
+    if labels_map[0] is not None : axx[0][0].legend(fontsize=12)
+    fig.tight_layout()
+    if savename is not None:
+        fig.savefig(savename)
+    fig.show()
