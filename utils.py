@@ -997,3 +997,20 @@ def get_weight_from_wmap(ra, dec, wmap, nest=True, lonlat=True):
     nside = hp.npix2nside(wmap.size)
     ipix = hp.ang2pix(nside, ra, dec, nest=nest, lonlat=lonlat)
     return wmap[ipix]
+
+
+def plot_kfold(keep_to_train, nside=128, nfold=6):
+    
+    size_group = 1000 * (nside / 256)**2  # define to have ~ 52 deg**2 for each patch (ie) group   
+    kfold = GroupKFold(n_splits=nfold)
+    pixels = np.arange(hp.nside2npix(nside))[keep_to_train]
+    groups = [i // size_group for i in range(pixels.size)]
+    index = build_kfold(kfold, pixels, groups)
+    Y_predkfolf = np.zeros(pixels.size)
+
+    for i in range(nfold):
+        fold_index = index[i]
+        Y_predkfolf[fold_index] = i+1
+    kfoldmap = np.zeros(hp.nside2npix(nside))
+    kfoldmap[keep_to_train]= Y_predkfolf
+    plot_moll(kfoldmap, nest=True, min=0, max=nfold)
