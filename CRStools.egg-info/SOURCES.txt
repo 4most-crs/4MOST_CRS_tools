@@ -1,0 +1,9 @@
+setup.py
+CRStools/__init__.py
+CRStools/_version.py
+CRStools/utils.py
+CRStools.egg-info/PKG-INFO
+CRStools.egg-info/SOURCES.txt
+CRStools.egg-info/dependency_links.txt
+CRStools.egg-info/requires.txt
+CRStools.egg-info/top_level.txt

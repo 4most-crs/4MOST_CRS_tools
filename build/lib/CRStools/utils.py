@@ -246,7 +246,7 @@ def get_skyaera(polygon, seed=42):
     return mask.sum()*full_sky/mask.size
 
 
-def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, polygon_dir='/pscratch/sd/a/arocher/4MOST/mask_fp'):
+def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, polygon_dir=None):
     '''
         Return mask where True values are position inside the 4most S8 footprint. Caveat: The initial polygons are rotated by 115 degrees.  
         
@@ -277,6 +277,9 @@ def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, 
             mask with True values are position inside the polygon
     '''
     
+    if polygon_dir is None: 
+         polygon_dir = os.path.join(os.path.dirname(__file__), 'mask_fp')
+
     if if_deg:
         ra = projection_ra(ra, ra_center=115)
         dec = projection_dec(dec)
@@ -325,10 +328,13 @@ def random_point_on_sky(size):
     return ra, c.dec.deg
 
 
-def get_4most_skyaera(regions=['ngc', 'sgc'], bg_fp=False, polygon_dir='/pscratch/sd/a/arocher/4MOST/mask_fp', seed=42):
+def get_4most_skyaera(regions=['ngc', 'sgc'], bg_fp=False, polygon_dir=None, seed=42):
     '''
         Get sky aera for a given polygon 
     '''
+
+    if polygon_dir is None:
+         polygon_dir = os.path.join(os.path.dirname(__file__), 'mask_fp')
     np.random.seed(seed)
     full_sky = 4*np.pi*(180/np.pi)**2
     ra, dec = random_point_on_sky(10000000)
@@ -578,7 +584,7 @@ def _get_sgr_stream(rot=120):
     return ra_bottom[index_sgr_bottom], dec_bottom[index_sgr_bottom], ra_top[index_sgr_top], dec_top[index_sgr_top]
 
 
-def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir='mask_fp', euclid_fp=False,
+def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False,
               galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False,
               rot=115, projection='mollweide', figsize=(11.0, 7.0), xpad=.5, labelpad=5, xlabel_labelpad=10.0, ycb_pos=-0.05, cmap='RdYlBu_r', ticks=None, tick_labels=None):
     """
@@ -653,6 +659,9 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
     plt.subplots_adjust(left=0.14, bottom=0.18, right=0.96, top=0.90)
 
     mesh = plt.pcolormesh(np.radians(ra_grid), np.radians(dec_grid), map_to_plot, vmin=min, vmax=max, cmap=cmap, edgecolor='none', lw=0)
+
+    if mask_dir is None:
+         mask_dir = os.path.join(os.path.dirname(__file__), 'mask_fp')
 
     if label is not None:
         from mpl_toolkits.axes_grid1.inset_locator import inset_axes
