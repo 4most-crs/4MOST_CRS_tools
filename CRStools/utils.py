@@ -22,7 +22,7 @@ warnings.simplefilter('ignore', category=AstropyDeprecationWarning)
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import GroupKFold
 from sklearn.ensemble import RandomForestRegressor
-
+import fitsio
 
 
 # 4most bg & lrg, re-tuned cuts (27Feb2020)
@@ -586,7 +586,7 @@ def _get_sgr_stream(rot=120):
     return ra_bottom[index_sgr_bottom], dec_bottom[index_sgr_bottom], ra_top[index_sgr_top], dec_top[index_sgr_top]
 
 
-def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False,
+def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False, stardens=False,
               galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False,
               rot=115, projection='mollweide', figsize=(11.0, 7.0), xpad=.5, labelpad=5, xlabel_labelpad=10.0, ycb_pos=-0.05, cmap='RdYlBu_r', ticks=None, tick_labels=None):
     """
@@ -661,6 +661,12 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
     plt.subplots_adjust(left=0.14, bottom=0.18, right=0.96, top=0.90)
 
     mesh = plt.pcolormesh(np.radians(ra_grid), np.radians(dec_grid), map_to_plot, vmin=min, vmax=max, cmap=cmap, edgecolor='none', lw=0)
+
+    if stardens:
+        filename = os.path.join(os.path.dirname(__file__), 'data', 'pixweight-dr10-128-new.fits')
+        STARDENS = fitsio.FITS('/global/homes/a/arocher/Code/postdoc/4MOST/4MOST_CRS_tools/CRStools/data/pixweight-dr10-128-new.fits')[1]['STARDENS'][:]
+        starmap_to_plot = hp.cartview(STARDENS, nest=True, rot=rot, flip='geo', fig=1, return_projected_map=True)
+        mesh = plt.pcolormesh(np.radians(ra_grid), np.radians(dec_grid), map_to_plot, vmin=5000, vmax=30000, cmap='binary', edgecolor='none', lw=0)
 
     if mask_dir is None:
          mask_dir = os.path.join(os.path.dirname(__file__), 'mask_fp')
@@ -756,7 +762,6 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             sel = d["CAP"] == cap
             _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="k", lw=2, zorder=10)
         ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="k", lw=2, zorder=10, label='DESI Y5')
-
 
 
     tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
