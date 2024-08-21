@@ -668,7 +668,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
     mesh = plt.pcolormesh(np.radians(ra_grid), np.radians(dec_grid), map_to_plot, vmin=min, vmax=max, cmap=cmap, edgecolor='none', lw=0)
 
     if stardens:
-        ttt= ax.pcolormesh(np.radians(ra_grid), np.radians(dec_grid), starmap_to_plot, vmin=5000, vmax=30000, cmap='binary', edgecolor='none', lw=0, alpha=0.1)
+        ttt= ax.pcolormesh(np.radians(ra_grid), np.radians(dec_grid), starmap_to_plot, vmin=5000, vmax=30000, cmap='binary', edgecolor='none', lw=0, alpha=0.5)
         
     if mask_dir is None:
          mask_dir = os.path.join(os.path.dirname(__file__), 'mask_fp')
