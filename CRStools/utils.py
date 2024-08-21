@@ -587,7 +587,8 @@ def _get_sgr_stream(rot=120):
 
 
 def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False,
-              galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False,
+              galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, 
+              qso_dr10_fp=False, atlas_fp=False, qso_fp=False,
               rot=115, projection='mollweide', figsize=(11.0, 7.0), xpad=.5, labelpad=5, xlabel_labelpad=10.0, ycb_pos=-0.05, cmap='RdYlBu_r', ticks=None, tick_labels=None):
     """
     From E. Chaussidon
@@ -739,7 +740,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         ax.plot(pol[0], pol[1], color="green", lw=2, zorder=10, label='QSO')
 
     if  euclid_fp:
-        for name in glob.glob(os.path.join(mask_dir, '*euclid*footprint*')):
+        for name in glob.glob(os.path.join(mask_dir, '*euclid*poly*')):
             rot_init = 110 
             pol = np.load(name, allow_pickle=True).T 
             pol[0] -= np.radians(rot_init)
