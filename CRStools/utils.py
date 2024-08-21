@@ -663,8 +663,8 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
     mesh = plt.pcolormesh(np.radians(ra_grid), np.radians(dec_grid), map_to_plot, vmin=min, vmax=max, cmap=cmap, edgecolor='none', lw=0)
 
     if stardens:
-        filename = os.path.join(os.path.dirname(__file__), 'data', 'pixweight-dr10-128-new.fits')
-        STARDENS = fitsio.FITS('/global/homes/a/arocher/Code/postdoc/4MOST/4MOST_CRS_tools/CRStools/data/pixweight-dr10-128-new.fits')[1]['STARDENS'][:]
+        f_stardens = os.path.join(os.path.dirname(__file__), 'data', 'pixweight-dr10-128-new.fits')
+        STARDENS = fitsio.FITS(f_stardens)[1]['STARDENS'][:]
         starmap_to_plot = hp.cartview(STARDENS, nest=True, rot=rot, flip='geo', fig=1, return_projected_map=True)
         plt.pcolormesh(np.radians(ra_grid), np.radians(dec_grid), starmap_to_plot, vmin=5000, vmax=30000, cmap='binary', edgecolor='none', lw=0)
 
