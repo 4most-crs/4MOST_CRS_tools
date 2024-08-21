@@ -668,7 +668,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         STARDENS = fitsio.FITS(f_stardens)[1]['STARDENS'][:]
         starmap_to_plot = hp.cartview(STARDENS, nest=True, rot=rot, flip='geo', fig=1, return_projected_map=True)
         ttt= ax.pcolormesh(np.radians(ra_grid), np.radians(dec_grid), starmap_to_plot, vmin=5000, vmax=30000, cmap='binary', edgecolor='none', lw=0)
-
+        plt.close(1)
     if mask_dir is None:
          mask_dir = os.path.join(os.path.dirname(__file__), 'mask_fp')
 
