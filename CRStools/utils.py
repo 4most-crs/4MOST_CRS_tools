@@ -780,9 +780,9 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             labels += ['Euclid']
     if show_legend:
         if handles is not None:
-            ax.legend(handles, labels,loc='upper right')
+            ax.legend(handles, labels, ncol=2, loc='upper right')
         else:
-            ax.legend(loc='upper right')
+            ax.legend(ncol=2, loc='upper right')
     if title:
         plt.title(title)
     if filename is not None:
