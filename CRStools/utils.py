@@ -985,7 +985,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                         2.38801546, 2.38801546, 2.38801546, 2.38801546, 2.38801546,
                         2.38801546, 2.38801546, 2.38801546, 2.38801546, 2.38801546,
                         2.38801546])
-        ra = np.remainder(ra + np.pi*2, np.pi*2)
+        ra = np.remainder(ra + 360, 360)
         plt.plot(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), label='LSST', color='lightskyblue', lw=3)
 
 
