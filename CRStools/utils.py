@@ -754,8 +754,8 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         d = Table.read(os.path.join(mask_dir,"desi-14k-footprint-dark.ecsv"))
         for cap in ["NGC", "SGC"]:
             sel = d["CAP"] == cap
-            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color=colors[2], lw=2, zorder=10)
-        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color=colors[2], lw=2, zorder=10, label='DESI Y5')
+            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='k', lw=2, zorder=10)
+        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='k', lw=2, zorder=10, label='DESI Y5')
 
 
     tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
