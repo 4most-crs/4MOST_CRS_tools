@@ -999,10 +999,10 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], c="lightgoldenrod", s=3, zorder=10, marker='o')
+            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color="peachpuff", s=3, zorder=10, marker='o')
         handles, labels = ax.get_legend_handles_labels()
         import matplotlib.lines as mlines
-        handles +=[mlines.Line2D([], [], color='lightgoldenrod', linestyle='-', lw=2)]
+        handles +=[mlines.Line2D([], [], color='peachpuff', linestyle='-', lw=2)]
         labels += ['Euclid']
     if show_legend:
         if handles is not None:
