@@ -711,20 +711,20 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                 ttt = tt[mm] - np.radians(115) + np.radians(rot)
                 ttt = np.remainder(ttt + np.pi*2, np.pi*2)
                 ttt[ttt > np.pi] -= np.pi*2
-                ax.plot(ttt, projection_dec([-20]*100)[mm], lw=0.8, c='darkred', ls='--', zorder=10, label='BG cut')
+                ax.scatter(ttt, projection_dec([-20]*100)[mm], lw=0.8, c='orangered', s=1, zorder=10, label='BG cut')
             pol[0] -= np.radians(115)
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color="darkred", lw=2, zorder=10)
-        ax.plot(pol[0], pol[1], color="darkred", lw=2, zorder=10, label='4MOST')
+            ax.scatter(pol[0], pol[1], color="orangered", s=3, zorder=10)
+        ax.scatter(pol[0], pol[1], color="orangered", s=3, zorder=10, label='4MOST')
 
     if qso_dr10_fp:
         pol = np.load(os.path.join(mask_dir, 'qso_dr10_sgc_poly.npy'), allow_pickle=True).T 
         pol[0] += np.radians(rot)
         pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
         pol[0][pol[0] > np.pi] -= np.pi*2
-        ax.plot(pol[0], pol[1], color="darkblue", lw=2, zorder=10, label='DR10')
+        ax.scatter(pol[0], pol[1], color="darkblue", s=3, zorder=10, label='DR10')
 
     if atlas_fp:
         for reg in ['ngc','sgc']:
@@ -733,8 +733,8 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color="steelblue", lw=2, zorder=10)
-        ax.plot(pol[0], pol[1], color="steelblue", lw=2, zorder=10, label='ATLAS')
+            ax.scatter(pol[0], pol[1], color="steelblue", s=3, zorder=10)
+        ax.scatter(pol[0], pol[1], color="steelblue", s=3, zorder=10, label='ATLAS')
 
     if qso_fp:
         for name, rot_init in zip(['atlas_ngc_poly.npy', 'qso_sgc_poly.npy'], [115, 0]):
@@ -743,8 +743,8 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color="green", lw=2, zorder=10)
-        ax.plot(pol[0], pol[1], color="green", lw=2, zorder=10, label='QSO')
+            ax.scatter(pol[0], pol[1], color="green", s=3, zorder=10)
+        ax.scatter(pol[0], pol[1], color="green", s=3, zorder=10, label='QSO')
 
     if  euclid_fp:
         for name in glob.glob(os.path.join(mask_dir, '*euclid*footprint*')):
@@ -754,16 +754,16 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.scatter(pol[0], pol[1], color="darkorange", s=2, zorder=10, marker='o')
-        ax.scatter(pol[0], pol[1], color="darkorange", s=2, zorder=10, label='Euclid')
+            ax.scatter(pol[0], pol[1], color="darkorange", s=3, zorder=10)
+        ax.scatter(pol[0], pol[1], color="darkorange", s=3, zorder=10, label='Euclid')
 
         
     if desi_footprint:
         d = Table.read(os.path.join(mask_dir,"desi-14k-footprint-dark.ecsv"))
         for cap in ["NGC", "SGC"]:
             sel = d["CAP"] == cap
-            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="k", lw=2, zorder=10)
-        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="k", lw=2, zorder=10, label='DESI Y5')
+            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="k", s=3, zorder=10)
+        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="k", s=3, zorder=10, label='DESI Y5')
 
 
     tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
