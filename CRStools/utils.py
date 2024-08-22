@@ -747,8 +747,8 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color=colors[-1], lw=2, zorder=10)
-        ax.plot(pol[0], pol[1], color=colors[-1], lw=2, zorder=10, label='QSO')
+            ax.plot(pol[0], pol[1], color=colors[4], lw=2, zorder=10)
+        ax.plot(pol[0], pol[1], color=colors[4], lw=2, zorder=10, label='QSO')
         
     if desi_footprint:
         d = Table.read(os.path.join(mask_dir,"desi-14k-footprint-dark.ecsv"))
@@ -1002,10 +1002,10 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color=colors[4], s=2, zorder=10, marker='o')
+            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color=colors[-1], s=2, zorder=10, marker='o')
         handles, labels = ax.get_legend_handles_labels()
         import matplotlib.lines as mlines
-        handles +=[mlines.Line2D([], [], color=colors[4], linestyle='-', lw=2)]
+        handles +=[mlines.Line2D([], [], color=colors[-1], linestyle='-', lw=2)]
         labels += ['Euclid']
     if show_legend:
         if handles is not None:
