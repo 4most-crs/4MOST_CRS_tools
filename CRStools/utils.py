@@ -754,8 +754,8 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color="darkorange", lw=2, zorder=10)
-        ax.plot(pol[0], pol[1], color="darkorange", lw=2, zorder=10, label='Euclid')
+            ax.scatter(pol[0], pol[1], color="darkorange", s=2, zorder=10)
+        ax.scatter(pol[0], pol[1], color="darkorange", s=2, zorder=10, label='Euclid')
 
         
     if desi_footprint:
