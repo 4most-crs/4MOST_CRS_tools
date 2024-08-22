@@ -777,7 +777,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             handles, labels = ax.get_legend_handles_labels()
             import matplotlib.lines as mlines
             handles +=[mlines.Line2D([], [], color='darkorange', linestyle='-', lw=3)]
-
+            labels += ['Euclid']
     if show_legend:
         if handles is not None:
             ax.legend(handles, labels,loc='upper right')
