@@ -717,15 +717,15 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color="orangered"lw=2,, zorder=100)
-        ax.plot(pol[0], pol[1], color="orangered"lw=2,, zorder=100, label='4MOST')
+            ax.plot(pol[0], pol[1], color="orangered", lw=2, zorder=100)
+        ax.plot(pol[0], pol[1], color="orangered", lw=2, zorder=100, label='4MOST')
 
     if qso_dr10_fp:
         pol = np.load(os.path.join(mask_dir, 'qso_dr10_sgc_poly.npy'), allow_pickle=True).T 
         pol[0] += np.radians(rot)
         pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
         pol[0][pol[0] > np.pi] -= np.pi*2
-        ax.plot(pol[0], pol[1], color="darkblue"lw=2,, zorder=10, label='DR10')
+        ax.plot(pol[0], pol[1], color="darkblue", lw=2, zorder=10, label='DR10')
 
     if atlas_fp:
         for reg in ['ngc','sgc']:
@@ -734,8 +734,8 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color="steelblue"lw=2,, zorder=10)
-        ax.plot(pol[0], pol[1], color="steelblue"lw=2,, zorder=10, label='ATLAS')
+            ax.plot(pol[0], pol[1], color="steelblue", lw=2, zorder=10)
+        ax.plot(pol[0], pol[1], color="steelblue", lw=2, zorder=10, label='ATLAS')
 
     if qso_fp:
         for name, rot_init in zip(['atlas_ngc_poly.npy', 'qso_sgc_poly.npy'], [115, 0]):
@@ -744,15 +744,15 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color="green"lw=2,, zorder=10)
-        ax.plot(pol[0], pol[1], color="green"lw=2,, zorder=10, label='QSO')
+            ax.plot(pol[0], pol[1], color="green", lw=2, zorder=10)
+        ax.plot(pol[0], pol[1], color="green", lw=2, zorder=10, label='QSO')
         
     if desi_footprint:
         d = Table.read(os.path.join(mask_dir,"desi-14k-footprint-dark.ecsv"))
         for cap in ["NGC", "SGC"]:
             sel = d["CAP"] == cap
-            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="k"lw=2,, zorder=10)
-        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="k"lw=2,, zorder=10, label='DESI Y5')
+            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="k", lw=2, zorder=10)
+        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="k", lw=2, zorder=10, label='DESI Y5')
 
 
     tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
@@ -987,7 +987,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                         2.38801546])
         ra = np.remainder(ra + 360, 360)
         ra[ra > 180] -= 360
-        plt.plot(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), label='LSST', color='lightskyblue'lw=2,)
+        plt.plot(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), label='LSST', color='lightskyblue', lw=2)
 
 
     if euclid_fp:
@@ -1001,7 +1001,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             ax.plot(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color="darkorange", s=3, zorder=10, marker='o')
         handles, labels = ax.get_legend_handles_labels()
         import matplotlib.lines as mlines
-        handles +=[mlines.Line2D([], [], color='darkorange', linestyle='-'lw=2,)]
+        handles +=[mlines.Line2D([], [], color='darkorange', linestyle='-', lw=2)]
         labels += ['Euclid']
     if show_legend:
         if handles is not None:
