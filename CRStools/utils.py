@@ -721,7 +721,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
             ax.plot(pol[0], pol[1], color='r', lw=2, zorder=100)
-        ax.plot(pol[0], pol[1], color='r', lw=2, zorder=100, label='4MOST')
+        ax.plot(pol[0], pol[1], color='r', lw=2, zorder=100, label='4MOST-CRS')
 
     if qso_dr10_fp:
         pol = np.load(os.path.join(mask_dir, 'qso_dr10_sgc_poly.npy'), allow_pickle=True).T 
@@ -1241,7 +1241,7 @@ def plot_systmematics(targets_map, features_pixmap, feature_names=_all_feature_n
     if labels_map[0] is not None : axx[0][0].legend(fontsize=12)
     fig.tight_layout()
     if savename is not None:
-        fig.savefig(savename)
+        fig.savefig(savename, facecolor='w', bbox_inches='tight', pad_inches=0.1, dpi=400)
     fig.show()
 
 def get_weight_from_wmap(ra, dec, wmap, nest=True, lonlat=True):
