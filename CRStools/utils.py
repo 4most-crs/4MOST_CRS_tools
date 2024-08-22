@@ -1002,7 +1002,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color=colors[4], s=3, zorder=10, marker='o')
+            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color=colors[4], s=2, zorder=10, marker='o')
         handles, labels = ax.get_legend_handles_labels()
         import matplotlib.lines as mlines
         handles +=[mlines.Line2D([], [], color=colors[4], linestyle='-', lw=2)]
