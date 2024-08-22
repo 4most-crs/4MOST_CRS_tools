@@ -998,14 +998,16 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color="darkorange", lw=3, zorder=10)
-        ax.plot(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color="darkorange", lw=3, zorder=10, label='Euclid')
-        #handles, labels = ax.get_legend_handles_labels()
-        #import matplotlib.lines as mlines
-        #handles +=[mlines.Line2D([], [], color='darkorange', linestyle='-', lw=3)]
-        #labels += ['Euclid']
+            ax.plot(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color="darkorange", s=3, zorder=10, marker='o')
+        handles, labels = ax.get_legend_handles_labels()
+        import matplotlib.lines as mlines
+        handles +=[mlines.Line2D([], [], color='darkorange', linestyle='-', lw=3)]
+        labels += ['Euclid']
     if show_legend:
-        ax.legend(ncol=2, loc='upper right')
+        if handles is not None:
+            ax.legend(handles, labels, ncol=2, loc='upper right')
+        else:
+            ax.legend(ncol=2, loc='upper right')
     if title:
         plt.title(title)
     if filename is not None:
