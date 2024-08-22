@@ -1015,7 +1015,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
     if title:
         plt.title(title)
     if filename is not None:
-        plt.savefig(filename, facecolor='w', bbox_inches='tight', pad_inches=0.1)
+        plt.savefig(filename, facecolor='w', bbox_inches='tight', pad_inches=0.1, dpi=400)
     if show:
         plt.show()
     else:
