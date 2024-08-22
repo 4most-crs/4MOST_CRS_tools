@@ -23,6 +23,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import GroupKFold
 from sklearn.ensemble import RandomForestRegressor
 import fitsio
+import matplotlib as mpl
 
 
 # 4most bg & lrg, re-tuned cuts (27Feb2020)
@@ -639,6 +640,8 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                       cmap.set_extremes(under='darkgrey')  # --> everything under min will be darkgrey
     """
     # transform healpix map to 2d array
+    colors=['#348ABD', '#A60628', '#7A68A6','#467821','#D55E00','#CC79A7','#56B4E9','#009E73','#F0E442','#0072B2']
+
     handles = None
     plt.figure(1)
     m = hp.ma(hmap) if whmap is None else hp.ma(whmap/hmap)
@@ -712,20 +715,20 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                 ttt = tt[mm] - np.radians(115) + np.radians(rot)
                 ttt = np.remainder(ttt + np.pi*2, np.pi*2)
                 ttt[ttt > np.pi] -= np.pi*2
-                ax.plot(ttt, projection_dec([-20]*100)[mm], lw=0.8, c='navy', ls='--', zorder=100, label='BG cut')
+                ax.plot(ttt, projection_dec([-20]*100)[mm], lw=0.8, c=colors[1], ls='--', zorder=100, label='BG cut')
             pol[0] -= np.radians(115)
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color="navy", lw=2, zorder=100)
-        ax.plot(pol[0], pol[1], color="navy", lw=2, zorder=100, label='4MOST')
+            ax.plot(pol[0], pol[1], color=colors[1], lw=2, zorder=100)
+        ax.plot(pol[0], pol[1], color=colors[1], lw=2, zorder=100, label='4MOST')
 
     if qso_dr10_fp:
         pol = np.load(os.path.join(mask_dir, 'qso_dr10_sgc_poly.npy'), allow_pickle=True).T 
         pol[0] += np.radians(rot)
         pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
         pol[0][pol[0] > np.pi] -= np.pi*2
-        ax.plot(pol[0], pol[1], color="darkgreen", lw=2, zorder=10, label='DR10')
+        ax.plot(pol[0], pol[1], color=colors[3], lw=2, zorder=10, label='DR10')
 
     if atlas_fp:
         for reg in ['ngc','sgc']:
@@ -734,8 +737,8 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color="darkolivegreen", lw=2, zorder=10)
-        ax.plot(pol[0], pol[1], color="darkolivegreen", lw=2, zorder=10, label='ATLAS')
+            ax.plot(pol[0], pol[1], color=colors[5], lw=2, zorder=10)
+        ax.plot(pol[0], pol[1], color=colors[5], lw=2, zorder=10, label='ATLAS')
 
     if qso_fp:
         for name, rot_init in zip(['atlas_ngc_poly.npy', 'qso_sgc_poly.npy'], [115, 0]):
@@ -744,15 +747,15 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color="darkseagreen", lw=2, zorder=10)
-        ax.plot(pol[0], pol[1], color="darkseagreen", lw=2, zorder=10, label='QSO')
+            ax.plot(pol[0], pol[1], color=colors[-1], lw=2, zorder=10)
+        ax.plot(pol[0], pol[1], color=colors[-1], lw=2, zorder=10, label='QSO')
         
     if desi_footprint:
         d = Table.read(os.path.join(mask_dir,"desi-14k-footprint-dark.ecsv"))
         for cap in ["NGC", "SGC"]:
             sel = d["CAP"] == cap
-            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="darkslategray", lw=2, zorder=10)
-        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color="darkslategray", lw=2, zorder=10, label='DESI Y5')
+            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color=colors[2], lw=2, zorder=10)
+        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color=colors[2], lw=2, zorder=10, label='DESI Y5')
 
 
     tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
@@ -988,7 +991,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         ra = np.remainder(ra + 360, 360)
         ra[ra > 180] -= 360
         #plt.plot(ra[ra.argsort()],dec[ra.argsort()], lw=0.8, color='lightskyblue')
-        plt.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), -np.pi/2, interpolate=True, color='lightskyblue', alpha=0.2, label='LSST')
+        plt.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), -np.pi/2, interpolate=True, color=colors[0], alpha=0.2, label='LSST')
 
 
     if euclid_fp:
@@ -999,10 +1002,10 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color="goldenrod", s=3, zorder=10, marker='o')
+            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color=colors[6], s=3, zorder=10, marker='o')
         handles, labels = ax.get_legend_handles_labels()
         import matplotlib.lines as mlines
-        handles +=[mlines.Line2D([], [], color='goldenrod', linestyle='-', lw=2)]
+        handles +=[mlines.Line2D([], [], color=colors[6], linestyle='-', lw=2)]
         labels += ['Euclid']
     if show_legend:
         if handles is not None:
