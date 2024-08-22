@@ -639,6 +639,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                       cmap.set_extremes(under='darkgrey')  # --> everything under min will be darkgrey
     """
     # transform healpix map to 2d array
+    handles = None
     plt.figure(1)
     m = hp.ma(hmap) if whmap is None else hp.ma(whmap/hmap)
     mask_2 = np.zeros(len(m))
@@ -745,18 +746,6 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0][pol[0] > np.pi] -= np.pi*2
             ax.plot(pol[0], pol[1], color="green", lw=3, zorder=10)
         ax.plot(pol[0], pol[1], color="green", lw=3, zorder=10, label='QSO')
-
-    if  euclid_fp:
-        for name in glob.glob(os.path.join(mask_dir, '*euclid*footprint*')):
-            rot_init = 110 
-            pol = np.load(name, allow_pickle=True).T 
-            pol[0] -= np.radians(rot_init)
-            pol[0] += np.radians(rot)
-            pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
-            pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.scatter(pol[0], pol[1], color="darkorange", s=3, zorder=10, marker='o')
-        ax.scatter(pol[0], pol[1], color="darkorange", s=3, zorder=10, label='Euclid')
-
         
     if desi_footprint:
         d = Table.read(os.path.join(mask_dir,"desi-14k-footprint-dark.ecsv"))
@@ -776,9 +765,24 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
     ax.set_ylabel('Dec. [deg]')
 
     ax.grid(True)
+    if euclid_fp:
+        for name in glob.glob(os.path.join(mask_dir, '*euclid*footprint*')):
+            rot_init = 110 
+            pol = np.load(name, allow_pickle=True).T 
+            pol[0] -= np.radians(rot_init)
+            pol[0] += np.radians(rot)
+            pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
+            pol[0][pol[0] > np.pi] -= np.pi*2
+            ax.scatter(pol[0], pol[1], color="darkorange", s=3, zorder=10, marker='o')
+            handles, labels = ax.get_legend_handles_labels()
+            import matplotlib.lines as mlines
+            handles +=[mlines.Line2D([], [], color='darkorange', linestyle='-', lw=3)]
 
     if show_legend:
-        ax.legend(loc='upper right')
+        if handles is not None:
+            ax.legend(handles, labels,loc='upper right')
+        else:
+            ax.legend(loc='upper right')
     if title:
         plt.title(title)
     if filename is not None:
