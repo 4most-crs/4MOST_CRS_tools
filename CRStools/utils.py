@@ -987,7 +987,8 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                         2.38801546])
         ra = np.remainder(ra + 360, 360)
         ra[ra > 180] -= 360
-        plt.plot(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), label='LSST', color='lightskyblue', lw=2)
+        plt.plot(ra[ra.argsort()],dec[ra.argsort()], lw=0.8, color='lightskyblue')
+        plt.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), interpolate=True, color='lightskyblue', alpha=0.2, label='LSST', color='lightskyblue')
 
 
     if euclid_fp:
