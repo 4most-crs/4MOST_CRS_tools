@@ -132,7 +132,7 @@ def get_4most_lrg_new_sel(data, shift = 0.11): #shift = 0.0825
 
     # Additionnal cuts from the DESI LRG TS
     mask_tot_ls &= fiberz > 17.5
-    mask_tot_ls &= data['GAIA_PHOT_G_MEAN_MAG'] > 18 
+    mask_tot_ls &= (data['GAIA_PHOT_G_MEAN_MAG'] > 18) | (data['GAIA_PHOT_G_MEAN_MAG'] == 0) 
     mask_tot_ls &= ~(data['MASKBITS'] & 2**1 > 0)
     mask_tot_ls &= ~(data['MASKBITS'] & 2**12 > 0)
     mask_tot_ls &= ~(data['MASKBITS'] & 2**13 > 0)
