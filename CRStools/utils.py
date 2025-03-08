@@ -36,7 +36,7 @@ def get_4most_bg_old_vista_sel(j,k,w1,r, jmin = 16, jmax= 18.25, rmax= 22):
 
 
 
-def get_4most_bg_new_sel(cat, mag_r_lim=19):
+def get_4most_bg_new_sel(cat, mag_r_lim=19.08):
     
     not_in_gaia = cat['REF_CAT'] == '  '
     raw_mag_r = 22.5-2.5*np.log10(cat['FLUX_R'])
@@ -47,7 +47,8 @@ def get_4most_bg_new_sel(cat, mag_r_lim=19):
     sel |= not_in_gaia
 
     #maskbit arround bright stars
-    sel &= ~(cat['MASKBITS'] & 2**1 > 0) 
+    sel &= ~(cat['MASKBITS'] & 2**1 > 0)
+    sel &= ~(cat['MASKBITS'] & 2**11 > 0)
     #maskbit arround large galaxies
     sel &= ~(cat['MASKBITS'] & 2**12 > 0)
     sel &= ~(cat['MASKBITS'] & 2**13 > 0)
@@ -90,7 +91,7 @@ def get_4most_bg_new_sel(cat, mag_r_lim=19):
     return sel
 
 
-def get_4most_lrg_new_sel(data, shift = 0.11): #shift = 0.0825
+def get_4most_lrg_new_sel(data, shift = 0.06): #shift = 0.0825
 
     gflux = data['FLUX_G']
     gMW = data['MW_TRANSMISSION_G']
@@ -134,8 +135,10 @@ def get_4most_lrg_new_sel(data, shift = 0.11): #shift = 0.0825
     mask_tot_ls &= fiberz > 17.5
     mask_tot_ls &= (data['GAIA_PHOT_G_MEAN_MAG'] > 18) | (data['GAIA_PHOT_G_MEAN_MAG'] == 0) 
     mask_tot_ls &= ~(data['MASKBITS'] & 2**1 > 0)
+    mask_tot_ls &= ~(data['MASKBITS'] & 2**11 > 0)
     mask_tot_ls &= ~(data['MASKBITS'] & 2**12 > 0)
     mask_tot_ls &= ~(data['MASKBITS'] & 2**13 > 0)
+    mask_tot_ls &= ~(data['WISEMASK_W1'] > 0)
     
     # Additionnal cut on stars with parallax or pmra or pmdec !=0 and snr >3
     snr_par = np.abs(data['PARALLAX']*np.sqrt(data['PARALLAX_IVAR']))
