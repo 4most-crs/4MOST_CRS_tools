@@ -589,7 +589,7 @@ def _get_sgr_stream(rot=120):
 
 def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False, stardens=False, lsst_fp=False,
               galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False,
-              rot=115, projection='mollweide', figsize=(11.0, 7.0), xpad=.5, labelpad=5, xlabel_labelpad=10.0, ycb_pos=-0.05, cmap='RdYlBu_r', ticks=None, tick_labels=None):
+              waves_wide_fp=False, waves_ddf_fp=False, des_fp=False, rot=115, projection='mollweide', figsize=(11.0, 7.0), xpad=.5, labelpad=5, xlabel_labelpad=10.0, ycb_pos=-0.05, cmap='RdYlBu_r', ticks=None, tick_labels=None):
     """
     From E. Chaussidon
     Plot an healpix map in nested scheme with a specific projection.
@@ -689,7 +689,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
 
     if galactic_plane:
         ra, dec = _get_galactic_plane(rot=rot)
-        ax.plot(np.radians(ra), np.radians(dec), linestyle='-', linewidth=0.8, color='black', label='Galactic plane')
+        ax.plot(np.radians(ra), np.radians(dec), linestyle='--', linewidth=0.8, color='black', label='Galactic plane')
     if ecliptic_plane:
         ra, dec = _get_ecliptic_plane(rot=rot)
         ax.plot(np.radians(ra), np.radians(dec), linestyle=':', linewidth=0.8, color='slategrey', label='Ecliptic plane')
@@ -720,8 +720,8 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color='r', lw=2, zorder=100)
-        ax.plot(pol[0], pol[1], color='r', lw=2, zorder=100, label='4MOST-CRS')
+            ax.plot(pol[0], pol[1], color='r', lw=1, zorder=100)
+        ax.plot(pol[0], pol[1], color='r', lw=1, zorder=100, label='4MOST-CRS')
 
     if qso_dr10_fp:
         pol = np.load(os.path.join(mask_dir, 'qso_dr10_sgc_poly.npy'), allow_pickle=True).T 
@@ -729,6 +729,17 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
         pol[0][pol[0] > np.pi] -= np.pi*2
         ax.plot(pol[0], pol[1], color=colors[3], lw=2, zorder=10, label='DR10')
+
+        
+    # if show_legend:
+    #     if handles is not None:
+    #         ax.legend(handles, labels, ncol=3, loc='lower right')
+    #     else:
+    #         ax.legend(ncol=3, loc='lower right')
+    # if title:
+    #     plt.title(title)
+    # if filename is not None:
+    #     plt.savefig(filename, facecolor='w', bbox_inches='tight', pad_inches=0.1, dpi=400)
 
     if atlas_fp:
         for reg in ['ngc','sgc']:
@@ -754,20 +765,10 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         d = Table.read(os.path.join(mask_dir,"desi-14k-footprint-dark.ecsv"))
         for cap in ["NGC", "SGC"]:
             sel = d["CAP"] == cap
-            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='k', lw=2, zorder=10)
-        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='k', lw=2, zorder=10, label='DESI Y5')
+            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='k', lw=1, zorder=10)
+        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='k', lw=1, zorder=10, label='DESI Y5')
 
 
-    tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
-    tick_labels = np.remainder(tick_labels + 360 + rot, 360)
-    tick_labels = np.array([f'{lab}°' for lab in tick_labels])
-    ax.set_xticklabels(tick_labels)
-
-    ax.set_xlabel('R.A. [deg]', labelpad=xlabel_labelpad)
-    ax.xaxis.set_label_position('top')
-    ax.set_ylabel('Dec. [deg]')
-
-    ax.grid(True)
 
     if lsst_fp:
         ra = np.array([ 75.234375, 76.640625, 78.046875, 79.453125, 80.859375,
@@ -990,10 +991,17 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                         2.38801546])
         ra = np.remainder(ra + 360, 360)
         ra[ra > 180] -= 360
-        plt.scatter(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), s=3, color=colors[8])
-        plt.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), -np.pi/2, interpolate=True, color=colors[8], alpha=0.2, label='LSST')
-
-
+        # ax.scatter(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), s=0.5, color=colors[8])
+        ax.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), -np.pi/2, interpolate=True, color=colors[8], alpha=0.25, label='LSST')
+        # handles +=[mlines.Line2D([], [], color=colors[8], linestyle='-', lw=2)]
+        # labels += ['LSST']
+    if show_legend:
+        if handles is not None:
+            ax.legend(handles, labels, loc='lower right', bbox_to_anchor=(0.5, 1.05), ncol=3, fancybox=True)
+        else:
+            ax.legend(loc='lower right', bbox_to_anchor=(0.5, 1.05), ncol=3, fancybox=True)
+    import matplotlib.lines as mlines        
+    
     if euclid_fp:
         for name in glob.glob(os.path.join(mask_dir, '*euclid*footprint*')):
             rot_init = 110 
@@ -1002,16 +1010,83 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color=colors[2], s=2, zorder=10, marker='o')
+            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color=colors[2], s=0.5, zorder=10, marker='o')
+            # ax.fill_between(pol[0][pol[0].argsort()],pol[1][pol[0].argsort()], -np.pi/2, interpolate=True, color=colors[2], alpha=0.1, label='Euclid')
+
         handles, labels = ax.get_legend_handles_labels()
-        import matplotlib.lines as mlines
-        handles +=[mlines.Line2D([], [], color=colors[2], linestyle='-', lw=2)]
-        labels += ['Euclid']
+        # import matplotlib.lines as mlines
+        if handles is not None:
+            handles +=[mlines.Line2D([], [], color=colors[2], linestyle='-', lw=2)]
+        labels += ['Euclid']  
+        
+    if waves_wide_fp:
+        for name in glob.glob(os.path.join(mask_dir, '*WAVES*wide*')):
+            rot_init = 110 
+            pol = np.load(name, allow_pickle=True).T 
+            pol[0] -= np.radians(rot_init)
+            pol[0] += np.radians(rot)
+            pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
+            pol[0][pol[0] > np.pi] -= np.pi*2
+            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color=colors[6], s=0.5, zorder=10, marker='.', alpha=0.7)
+        
+        if handles is  None:
+
+            handles, labels = ax.get_legend_handles_labels()
+
+        handles +=[mlines.Line2D([], [], color=colors[6], linestyle='-', lw=2)]
+        labels += ['WAVES-wide']
+        
+    if waves_ddf_fp:
+        for name in glob.glob(os.path.join(mask_dir, '*WAVES*ddf*')):
+            rot_init = 110 
+            pol = np.load(name, allow_pickle=True).T 
+            pol[0] -= np.radians(rot_init)
+            pol[0] += np.radians(rot)
+            pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
+            pol[0][pol[0] > np.pi] -= np.pi*2
+            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color=colors[8], s=0.5, zorder=10, marker='.')
+        # import matplotlib.lines as mlines
+        if handles is  None:
+
+            handles, labels = ax.get_legend_handles_labels()
+
+        handles +=[mlines.Line2D([], [], color=colors[8], linestyle='-', lw=2)]
+        labels += ['WAVES-ddf']
+        
+    if des_fp:
+        for name in glob.glob(os.path.join(mask_dir, '*des*fp*')):
+            rot_init = 110 
+            pol = np.load(name, allow_pickle=True).T 
+            pol[0] -= np.radians(rot_init)
+            pol[0] += np.radians(rot)
+            pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
+            pol[0][pol[0] > np.pi] -= np.pi*2
+            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color=colors[9], s=1, zorder=10, marker='o')
+        # import matplotlib.lines as mlines
+
+        if handles is  None:
+            handles, labels = ax.get_legend_handles_labels()
+
+        handles +=[mlines.Line2D([], [], color=colors[9], linestyle='-', lw=2)]
+        labels += ['DES']
+    
+    tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
+    tick_labels = np.remainder(tick_labels + 360 + rot, 360)
+    tick_labels = np.array([f'{lab}°' for lab in tick_labels])
+    ax.set_xticklabels(tick_labels)
+    # ax.xaxis.set_ticklabels_position("top")
+    # t.set_position((5,0))
+    ax.set_xlabel('R.A. [deg]', labelpad=xlabel_labelpad)
+    ax.xaxis.set_label_position('top')
+    ax.set_ylabel('Dec. [deg]')
+
+    ax.grid(True)
+    
     if show_legend:
         if handles is not None:
-            ax.legend(handles, labels, ncol=2, loc='upper right')
+            ax.legend(handles, labels, loc='lower right', bbox_to_anchor=(0.5, 1.05), ncol=3, fancybox=True)
         else:
-            ax.legend(ncol=2, loc='upper right')
+            ax.legend(loc='lower right', bbox_to_anchor=(0.5, 1.05), ncol=3, fancybox=True)
     if title:
         plt.title(title)
     if filename is not None:
@@ -1020,7 +1095,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         plt.show()
     else:
         plt.close()
-        
+
 def create_hp_map(ra, dec, nside=128, weight=None, lonlat=True, nest=False):
     pix = hp.ang2pix(nside, ra, dec, lonlat=lonlat, nest=nest)
     hp_map = np.bincount(pix, weights=weight, minlength=hp.nside2npix(nside)) * 1.0
