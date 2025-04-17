@@ -24,19 +24,83 @@ from sklearn.model_selection import GroupKFold
 from sklearn.ensemble import RandomForestRegressor
 import fitsio
 import matplotlib as mpl
+import matplotlib.lines as mlines
+from matplotlib.patches import Polygon
+
 
 
 # 4most bg & lrg, re-tuned cuts (27Feb2020)
 def get_4most_bg_old_vista_sel(j,k,w1,r, jmin = 16, jmax= 18.25, rmax= 22):
+    
     jw1 = j-w1
     jk = j-k
     parent    = (j>jmin) & (j<jmax) & (r<rmax) #& (vclass==1)
     sel       = (parent) & (jw1>1.6*jk-1.6) & (jw1<1.6*jk-0.5) & (jw1>-2.5*jk+0.1) & (jw1<-0.5*jk+0.1)
     return sel
 
+def get_4most_bg_sel_v2(cat, mag_r_lim=19.25):
+    # new color_cut: mag_r-mag_z < (0.93(mag_g-mag_r)-0.27) & mag_r-mag_z > (0.4(mag_g-mag_r)+0.07) & mag_r <19.25 (blue)
+
+    not_in_gaia = cat['REF_CAT'] == '  '
+    raw_mag_r = 22.5-2.5*np.log10(cat['FLUX_R'])
+    
+    mag_r = 22.5-2.5*np.log10(cat['FLUX_R']/cat['MW_TRANSMISSION_R'])
+    mag_z = 22.5-2.5*np.log10(cat['FLUX_Z']/cat['MW_TRANSMISSION_Z'])
+    sel = ((cat['GAIA_PHOT_G_MEAN_MAG'] - raw_mag_r) > 0.6) & ~not_in_gaia
+    sel |= not_in_gaia
+
+    #maskbit arround bright stars
+    sel &= ~(cat['MASKBITS'] & 2**1 > 0)
+    sel &= ~(cat['MASKBITS'] & 2**11 > 0)
+    #maskbit arround large galaxies
+    sel &= ~(cat['MASKBITS'] & 2**12 > 0)
+    sel &= ~(cat['MASKBITS'] & 2**13 > 0)
+
+    #fiber mag cut
+    fib_mag_r = 22.5-2.5*np.log10(cat['FIBERFLUX_R']/cat['MW_TRANSMISSION_R'])
+    mask = mag_r < 17.8
+    mask &= fib_mag_r < (22.9 + (mag_r - 17.8))
+    mask1 = (mag_r > 17.8) & (mag_r < 20)
+    mask1 &= fib_mag_r < 22.9
+    sel &= (mask|mask1)
+
+    # cut spurious objects
+    mag_g = 22.5-2.5*np.log10(cat['FLUX_G']/cat['MW_TRANSMISSION_G'])
+    mask = (mag_g-mag_r < -1) | (mag_g-mag_r > 4)
+    mask |= (mag_r-mag_z < -1) | (mag_r-mag_z > 4)
+    sel &= ~mask
+
+    # cut according Nobs
+    if 'NOBS_G' in cat.columns():
+        mask = (cat['NOBS_G'] == 0) | (cat['NOBS_R'] == 0) | (cat['NOBS_Z'] == 0)
+        sel &= ~mask
+
+    # fibertot mag cut
+    fibtot_mag_r = 22.5-2.5*np.log10(cat['FIBERTOTFLUX_R']/cat['MW_TRANSMISSION_R'])
+    mask = (mag_r > 12) & (fibtot_mag_r < 15) 
+    sel &= ~mask
+
+    # Additional photometric cut
+    
+    # sel &= mag_r-mag_z < (0.9*(mag_g-mag_r)-0.2)
+    sel &= mag_r-mag_z < (0.93*(mag_g-mag_r)-0.27)
+    sel &= mag_r-mag_z > (0.4*(mag_g-mag_r)+0.07)
+    # sel &= mag_g -mag_r > 0.95
+
+    # Additionnal cut on stars with parallax or pmra or pmdec !=0 and snr >3
+    snr_par = np.abs(cat['PARALLAX']*np.sqrt(cat['PARALLAX_IVAR']))
+    snr_pmra = np.abs(cat['PMRA']*np.sqrt(cat['PMRA_IVAR']))
+    snr_pmdec = np.abs(cat['PMDEC']*np.sqrt(cat['PMDEC_IVAR']))
+    mask = cat['PARALLAX'] != 0
+    mask &= (snr_pmra > 3) | (snr_pmra > 3) | (snr_pmdec > 3) 
+    sel &= ~mask
+    # Mag cut
+    sel &= mag_r < mag_r_lim
+    return sel
 
 
-def get_4most_bg_new_sel(cat, mag_r_lim=19.08):
+
+def get_4most_bg_sel(cat, mag_r_lim=19.08):
     
     not_in_gaia = cat['REF_CAT'] == '  '
     raw_mag_r = 22.5-2.5*np.log10(cat['FLUX_R'])
@@ -68,8 +132,9 @@ def get_4most_bg_new_sel(cat, mag_r_lim=19.08):
     sel &= ~mask
 
     # cut according Nobs
-    mask = (cat['NOBS_G'] == 0) | (cat['NOBS_R'] == 0) | (cat['NOBS_Z'] == 0)
-    sel &= ~mask
+    if 'NOBS_G' in cat.columns():
+        mask = (cat['NOBS_G'] == 0) | (cat['NOBS_R'] == 0) | (cat['NOBS_Z'] == 0)
+        sel &= ~mask
 
     # fibertot mag cut
     fibtot_mag_r = 22.5-2.5*np.log10(cat['FIBERTOTFLUX_R']/cat['MW_TRANSMISSION_R'])
@@ -125,8 +190,10 @@ def get_4most_lrg_new_sel(data, shift = 0.06): #shift = 0.0825
     #mask_tot_ls &= (photz > 0) & (photz < 1.4)
 
     # cut according Nobs,
-    mask = (data['NOBS_G'] == 0) | (data['NOBS_R'] == 0) | (data['NOBS_Z'] == 0) | (data['NOBS_W1'] == 0)
-    mask_tot_ls &= ~mask
+    if 'NOBS_G' in data.columns():
+        mask = (cat['NOBS_G'] == 0) | (cat['NOBS_R'] == 0) | (cat['NOBS_Z'] == 0)
+        sel &= ~mask
+    
     # cut according bad photometry
     mask = (data['FLUX_IVAR_R'] < 0) | (data['FLUX_IVAR_Z'] < 0) | (data['FLUX_IVAR_W1'] < 0) | (data['FLUX_G'] < 0)
     mask_tot_ls &= ~mask
@@ -252,7 +319,7 @@ def get_skyaera(polygon, seed=42):
     return mask.sum()*full_sky/mask.size
 
 
-def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, polygon_dir=None):
+def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, polygon_dir=None):
     '''
         Return mask where True values are position inside the 4most S8 footprint. Caveat: The initial polygons are rotated by 115 degrees.  
         
@@ -265,8 +332,6 @@ def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, 
             Declination in radians or degrees.
             
         (Optional) 
-		bg_fp: bool, default: False
-            Add additional cut to DEC < -20 for Bright galaxies
             
         reg: str or list,  default: ['ngc', 'sgc']
             Region to apply the mask, 'ngc' or 'sgc' only
@@ -293,14 +358,11 @@ def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, 
     regions = [regions] if isinstance(regions, str) else regions
 
     for reg in regions:
-        polygon = Path(np.load(os.path.join(polygon_dir,f'4most_{reg}_newfootprint.npy'), allow_pickle=True))
+        polygon = Path(np.load(os.path.join(polygon_dir,f'4most_{reg.lower()}_newfootprint.npy'), allow_pickle=True))
         m = polygon.contains_points(np.array([ra,dec]).T)
-        if reg =='sgc':
-            m &= dec < np.radians(-20)
-        if bg_fp & (reg =='ngc'):
-            m &= dec < np.radians(-20)
+        # if reg =='sgc':
+        #     m &= dec < np.radians(-20)
         mask |= m
-    mask &= dec < np.radians(-7.5)
     return mask
 
 
@@ -334,7 +396,7 @@ def random_point_on_sky(size):
     return ra, c.dec.deg
 
 
-def get_4most_skyaera(regions=['ngc', 'sgc'], bg_fp=False, polygon_dir=None, seed=42):
+def get_4most_skyaera(regions=['ngc', 'sgc'], polygon_dir=None, seed=42):
     '''
         Get sky aera for a given polygon 
     '''
@@ -347,7 +409,7 @@ def get_4most_skyaera(regions=['ngc', 'sgc'], bg_fp=False, polygon_dir=None, see
     regions = [regions] if isinstance(regions, str) else regions
     mask = []
     for reg in regions:
-        mask += [get_4most_s8foot(ra, dec, regions=reg, bg_fp=bg_fp)]
+        mask += [get_4most_s8foot(ra, dec, regions=reg.lower())]
         print(f'Area {reg}: {mask[-1].sum()*full_sky/mask[-1].size}')
     print(f'Total area: {np.concatenate(mask).sum()*full_sky/mask[0].size}')
     
@@ -590,9 +652,9 @@ def _get_sgr_stream(rot=120):
     return ra_bottom[index_sgr_bottom], dec_bottom[index_sgr_bottom], ra_top[index_sgr_top], dec_top[index_sgr_top]
 
 
-def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False, stardens=False, lsst_fp=False, desi_footprint_ext=False,
+def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False, stardens=False, lsst_fp=False, desi_footprint_ext=False, des_footprint=False,
               galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False,
-              rot=115, projection='mollweide', figsize=(11.0/1.5, 7.0/1.5), xpad=.5, labelpad=5, xlabel_labelpad=-190.0, ycb_pos=-0.05, cmap='RdYlBu_r', ticks=None, tick_labels=None, fontsize=10):
+              rot=115, projection='mollweide', figsize=(11.0/1.5, 7.0/1.5), xpad=.5, labelpad=5, xlabel_labelpad=7.0, ycb_pos=-0.07, cmap='RdYlBu_r', ticks=None, tick_labels=None, fontsize=10):
     """
     From E. Chaussidon
     Plot an healpix map in nested scheme with a specific projection.
@@ -633,7 +695,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         X position of label. Need to be adpated if figsize is modified.
     labelpad : float
         Y position of label. Need to be adpated if figsize is modified.
-    xlabel_labelpad : float
+    xlabel_  : float
         Position of the xlabel (R.A.). Need to be adpated if figsize is modified.
     ycb_pos : float
         Y position of the colorbar. Need to be adpated if figsize is modified or if title is too long.
@@ -724,7 +786,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
             ax.plot(pol[0], pol[1], color='tab:red', lw=2, zorder=100)
-            ax.add_patch(Polygon(pol.T, True, facecolor='tab:red', alpha=0.2))
+            ax.add_patch(Polygon(pol.T, facecolor='tab:red', alpha=0.2))
         ax.plot(pol[0], pol[1], color='tab:red', lw=2, zorder=100, label='4MOST-CRS')
 
     if qso_dr10_fp:
@@ -759,7 +821,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         for cap in ["NGC", "SGC"]:
             sel = d["CAP"] == cap
             _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='darkblue', lw=2, zorder=10)
-            ax.add_patch(Polygon(np.array([projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel])]).T, True, facecolor='darkblue', alpha=0.2))
+            ax.add_patch(Polygon(np.array([projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel])]).T, facecolor='darkblue', alpha=0.2))
         ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='darkblue', lw=1.5, zorder=10, label='DESI')
 
     if lsst_fp:
@@ -983,8 +1045,8 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                         2.38801546])
         ra = np.remainder(ra + 360, 360)
         ra[ra > 180] -= 360
-        #plt.scatter(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), s=3, color=colors[8])
-        plt.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), -np.pi/2, interpolate=True, color='#9f551e', alpha=0.3, label='LSST', ls='-', lw=0, zorder=20)
+        #   plt.scatter(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), s=3, color=colors[8])
+        ax.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), -np.pi/2, interpolate=True, color='k', alpha=0.3, label='LSST', ls='-', lw=0, zorder=20)
         
     if desi_footprint_ext:
         import pandas as pd
@@ -1010,12 +1072,27 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             handles, labels = ax.get_legend_handles_labels()
         handles +=[mlines.Line2D([], [], color='#189fae', linestyle='-', lw=2)]
         labels += ['Euclid']
+    if des_footprint:
+        for name in glob.glob(os.path.join(mask_dir, 'des_footprint.npy')):
+            pol = np.load(name, allow_pickle=True)
+            pol[0] *= -1
+            pol[0] += rot
+            pol[0] = np.remainder(pol[0] + 360, 360)
+            pol[0][pol[0] > 180] -= 360
+            ax.add_patch(Polygon(np.radians(pol).T, facecolor='darkred', alpha=0))
+            ax.plot(np.radians(pol[0]), np.radians(pol[1]), color='darkred', lw=2, zorder=100, label='DES')
+
+        if handles is None:
+            handles, labels = ax.get_legend_handles_labels()
+        handles +=[mlines.Line2D([], [], color='darkred', linestyle='-', lw=1.5)]
+        labels += ['DES']
+
         
     if show_legend:
         if handles is not None:
-            ax.legend(handles, labels, ncol=2, loc='upper left',bbox_to_anchor=(0.6, 0.7, 0, 0.4))
+            ax.legend(handles, labels, ncol=2, loc='upper left', bbox_to_anchor=(0.6, 0.7, 0, 0.4))
         else:
-            ax.legend(ncol=2, loc='best', bbox_to_anchor=(0.5, 0., 0.5, 0.5))
+            ax.legend(ncol=2, loc='upper left', bbox_to_anchor=(0.6, 0.7, 0, 0.4))
 
     tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
     tick_labels = np.remainder(tick_labels + 360 + rot, 360)
@@ -1045,7 +1122,7 @@ def create_hp_map(ra, dec, nside=128, weight=None, lonlat=True, nest=False):
     return hp_map
 
 
-def healpix_in_sgc(nside,nest=False):
+def healpix_in_sgc(nside, nest=False):
     theta, phi = hp.pix2ang(nside, range(hp.nside2npix(nside)),nest=nest)  
     ra= phi*180./np.pi
     dec = 90.-(theta*180./np.pi)
@@ -1196,71 +1273,6 @@ _all_feature_label = [r'$\log_{10}$(Stellar Density)', 'E(B-V)', r'PSF Depth in 
 _all_feature_labels_dict = dict(zip(_all_feature_names, _all_feature_label))
 
 
-def plot_systmematics(targets_map, features_pixmap, feature_names=_all_feature_names, labels_map=None, ylim=0.2, nb_rows=3, fig_title=None, savename=None):
-    
-    nb_cols = (len(feature_names)+(nb_rows-1))//nb_rows
-    fig,axx = plt.subplots(nb_rows,nb_cols,figsize=(nb_cols*4,nb_rows*3), sharey=True)
-    axes=axx.flatten()
-    if fig_title:
-        fig.suptitle(fig_title, fontsize=15)
-
-    if not isinstance(targets_map,list):
-        targets_map = [targets_map]
-    if not isinstance(feature_names,list):
-        feature_names = [feature_names]
-    
-    if labels_map is None:
-        labels_map = [None]*len(targets_map)
-    if not isinstance(labels_map,list):
-        labels_map = [labels_map]
-
-
-    for feature, ax in zip(feature_names, axes):
-        for (i, tar), label in zip(enumerate(targets_map), labels_map):
-            nbins=25
-            #keep_tot = hpmap != 0.0
-            feature_map = features_pixmap[feature].copy()
-            keep_tot = (tar!=0) & (feature_map!=0)
-            feature_map = feature_map[keep_tot]
-
-            #n_bar = np.mean(hpmap[keep_tot])
-            n_bar =np.mean(tar[keep_tot])
-            
-            if 'DEPTH' in feature: 
-                feature_map =-2.5*(np.log10(5/np.sqrt(feature_map))-9)
-            if 'STARDENS' in feature:
-                feature_map = np.log10(feature_map)
-            
-            boundary = np.quantile(feature_map, q=[0.02,0.98])
-            counts, bins = np.histogram(feature_map, bins=nbins, range=boundary)
-            cbin = 0.5*(bins[1:]+bins[:-1])
-            keep_all = [np.all([feature_map>=bins[i], feature_map<bins[i+1]], axis=0) for i in range(nbins)]
-            mean, std = np.array([np.mean((tar[keep_tot][mm]/n_bar)[tar[keep_tot][mm]/n_bar>0.1]) for mm in keep_all]), [np.std(tar[keep_tot][mm]/n_bar)/np.sqrt(mm.sum()) for mm in keep_all]
-            
-                
-
-            ax.errorbar(cbin, mean/mean.mean() -1, np.hstack(std), fmt='.', ls='-', color=f'C{i}', label=label)
-            ax.axhline(0, ls='--', lw=1.2, c='k')
-            ax.grid()
-            ax.set_xlabel(_all_feature_labels_dict[feature], fontsize=12)
-            ax.set_ylim(-ylim,ylim)
-            ax.grid(True)
-
-            normalisation = counts.sum()
-            x_hist, y_hist = np.ones(2*nbins), np.ones(2*nbins)
-            x_hist[::2], x_hist[1::2] = bins[:-1], bins[1:]
-            y_hist[::2], y_hist[1::2] = counts, counts
-            shift = -ylim
-            ax.plot(x_hist, y_hist/normalisation+shift, color=f'C{i}')
-            ax.fill_between(x_hist, y_hist/normalisation+shift, y2=shift, alpha=0.2, color=f'C{i}')
-
-    [axx[i][0].set_ylabel(r'$\frac{n-\bar n}{\bar n}$', fontsize=12) for i in range(len(axx))]
-    if labels_map[0] is not None : axx[0][0].legend(fontsize=12)
-    fig.tight_layout()
-    if savename is not None:
-        fig.savefig(savename, facecolor='w', bbox_inches='tight', pad_inches=0.1, dpi=400)
-    fig.show()
-
 def get_weight_from_wmap(ra, dec, wmap, nest=True, lonlat=True):
     nside = hp.npix2nside(wmap.size)
     ipix = hp.ang2pix(nside, ra, dec, nest=nest, lonlat=lonlat)
@@ -1282,3 +1294,103 @@ def plot_kfold(keep_to_train, nside=128, nfold=6):
     kfoldmap = np.zeros(hp.nside2npix(nside))
     kfoldmap[keep_to_train]= Y_predkfolf
     plot_moll(kfoldmap, nest=True, min=0, max=nfold)
+
+
+
+from matplotlib.ticker import FormatStrFormatter
+
+def plot_systmematics(targets_map, features_pixmap, feature_names=_all_feature_names, labels_map=None, ylim=0.2, nb_rows=3, marker='.', fig_title=None, savename=None, fig=None, shift_y=0, norm_w1depth_des=False, tracer=None, figsize=None, colors=['#A60628', 'darkblue','darkorange'], ncol_leg=2):
+    
+    if fig is None:
+        
+        nb_cols = (len(feature_names)+(nb_rows-1))//nb_rows
+        if figsize is None:
+            figsize=(nb_cols*3.5,nb_rows*4.5)
+        fig,axx = plt.subplots(nb_rows,nb_cols,figsize=figsize, sharey=True)
+        axes=axx.flatten()
+        [axx[i][0].set_ylabel(r'$\frac{n-\bar n}{\bar n}$', fontsize=15) for i in range(len(axx))]
+        if fig_title:
+            fig.suptitle(fig_title, fontsize=15)
+        shift_color=0
+    else: 
+        axes = fig.axes
+        shift_color = 0
+        
+
+    if not isinstance(targets_map,list):
+        targets_map = [targets_map]
+    if not isinstance(feature_names,list):
+        feature_names = [feature_names]
+    
+    if labels_map is None:
+        labels_map = [None]*len(targets_map)
+    if not isinstance(labels_map,list):
+        labels_map = [labels_map]
+
+
+    for feature, ax in zip(feature_names, axes):
+        for (i, tar), label in zip(enumerate(targets_map), labels_map):
+            i += shift_color
+            nbins=20
+            #keep_tot = hpmap != 0.0
+            feature_map = features_pixmap[feature].copy()
+            keep_tot = (tar!=0) & (feature_map!=0)
+            feature_map = feature_map[keep_tot]
+
+            #n_bar = np.mean(hpmap[keep_tot])
+            n_bar =np.mean(tar[keep_tot])
+            
+            if 'DEPTH' in feature: 
+                feature_map =-2.5*(np.log10(5/np.sqrt(feature_map))-9)
+            if 'STARDENS' in feature:
+                feature_map = np.log10(feature_map)
+            
+            boundary = np.quantile(feature_map, q=[0.05,0.93]) if norm_w1depth_des else np.quantile(feature_map, q=[0.05,0.95])
+            
+            counts, bins = np.histogram(feature_map, bins=nbins, range=boundary)
+            cbin = 0.5*(bins[1:]+bins[:-1])
+            keep_all = [np.all([feature_map>=bins[i], feature_map<bins[i+1]], axis=0) for i in range(nbins)]
+            mean, std = np.array([np.mean((tar[keep_tot][mm]/n_bar)[tar[keep_tot][mm]/n_bar>0.1]) for mm in keep_all]), [np.std(tar[keep_tot][mm]/n_bar)/np.sqrt(mm.sum()) for mm in keep_all]
+            
+                
+
+            ax.errorbar(cbin, mean/mean.mean() -1 + shift_y, np.hstack(std), fmt=marker, ls='-', label=label, color=colors[i], markersize=5, markerfacecolor='w')
+
+            ax.axhline(0+shift_y, ls='--', lw=1.2, c='k')
+            ax.grid()
+            ax.set_xlabel(_all_feature_labels_dict[feature], fontsize=12)
+            ax.set_ylim(-ylim,ylim+shift_y)
+            ax.grid(True)
+
+            normalisation = counts.sum()*2
+            x_hist, y_hist = np.ones(2*nbins), np.ones(2*nbins)
+            x_hist[::2], x_hist[1::2] = bins[:-1], bins[1:]
+            y_hist[::2], y_hist[1::2] = counts, counts
+            shift = -ylim + shift_y
+            ax.plot(x_hist, y_hist/normalisation+shift, color=colors[i])
+            ax.fill_between(x_hist, y_hist/normalisation+shift, y2=shift, alpha=0.2, color=colors[i])
+            ax.axhline(ylim, c='k', lw=0.8)
+            if tracer == 'BG':    
+                color_bg = '#A60628' if feature in get_features(tracer) else 'w'
+                props = dict(boxstyle='round', facecolor=color_bg, alpha=0.1)
+
+                ax.text(.05, .97, f'BG', fontsize=10,
+                            verticalalignment='top', bbox=props, transform=ax.transAxes)
+
+            elif tracer == 'LRG':            
+                color_bg = '#A60628' if feature in get_features(tracer) else 'w'
+                props = dict(boxstyle='round', facecolor=color_bg, alpha=0.1)
+                ax.text(.05, .47, f'LRG', fontsize=10, 
+                            verticalalignment='top', transform=ax.transAxes, bbox=props)
+                            
+            if feature == 'GALDEPTH_G': ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+
+    if labels_map[0] is not None : axes[0].legend(fontsize=9, ncol=ncol_leg)
+    fig.tight_layout()
+
+    if savename is not None:
+        fig.savefig(savename, facecolor='w', bbox_inches='tight', pad_inches=0.1, dpi=400)
+    fig.show()
+
+    return fig
+
