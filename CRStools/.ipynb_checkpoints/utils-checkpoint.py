@@ -35,8 +35,15 @@ def get_4most_bg_old_vista_sel(j,k,w1,r, jmin = 16, jmax= 18.25, rmax= 22):
     return sel
 
 
+def get_4most_lrg_old_vista_sel(j,k,w1, jmin = 18, jmax= 19.5):
+    jw1 = j-w1
+    jk = j-k
+    parent    = (j>jmin) & (j<jmax) & (jw1 < 1.2) & (jk<1.5)
+    sel       = (parent) & (jw1>0.5*jk+0.05) & (jw1<0.5*jk+0.5) & (jw1> -0.5*jk+0.1)
+    return sel
 
-def get_4most_bg_new_sel(cat, mag_r_lim=19.08):
+
+def get_4most_bg_new_sel(cat, mag_r_lim=19):
     
     not_in_gaia = cat['REF_CAT'] == '  '
     raw_mag_r = 22.5-2.5*np.log10(cat['FLUX_R'])
@@ -47,8 +54,7 @@ def get_4most_bg_new_sel(cat, mag_r_lim=19.08):
     sel |= not_in_gaia
 
     #maskbit arround bright stars
-    sel &= ~(cat['MASKBITS'] & 2**1 > 0)
-    sel &= ~(cat['MASKBITS'] & 2**11 > 0)
+    sel &= ~(cat['MASKBITS'] & 2**1 > 0) 
     #maskbit arround large galaxies
     sel &= ~(cat['MASKBITS'] & 2**12 > 0)
     sel &= ~(cat['MASKBITS'] & 2**13 > 0)
@@ -91,7 +97,7 @@ def get_4most_bg_new_sel(cat, mag_r_lim=19.08):
     return sel
 
 
-def get_4most_lrg_new_sel(data, shift = 0.06): #shift = 0.0825
+def get_4most_lrg_new_sel(data, shift = 0.11): #shift = 0.0825
 
     gflux = data['FLUX_G']
     gMW = data['MW_TRANSMISSION_G']
@@ -135,10 +141,8 @@ def get_4most_lrg_new_sel(data, shift = 0.06): #shift = 0.0825
     mask_tot_ls &= fiberz > 17.5
     mask_tot_ls &= (data['GAIA_PHOT_G_MEAN_MAG'] > 18) | (data['GAIA_PHOT_G_MEAN_MAG'] == 0) 
     mask_tot_ls &= ~(data['MASKBITS'] & 2**1 > 0)
-    mask_tot_ls &= ~(data['MASKBITS'] & 2**11 > 0)
     mask_tot_ls &= ~(data['MASKBITS'] & 2**12 > 0)
     mask_tot_ls &= ~(data['MASKBITS'] & 2**13 > 0)
-    mask_tot_ls &= ~(data['WISEMASK_W1'] > 0)
     
     # Additionnal cut on stars with parallax or pmra or pmdec !=0 and snr >3
     snr_par = np.abs(data['PARALLAX']*np.sqrt(data['PARALLAX_IVAR']))
@@ -146,6 +150,58 @@ def get_4most_lrg_new_sel(data, shift = 0.06): #shift = 0.0825
     snr_pmdec = np.abs(data['PMDEC']*np.sqrt(data['PMDEC_IVAR']))
     mask = data['PARALLAX'] != 0
     mask &= (snr_par > 3) | (snr_pmra > 3) | (snr_pmdec > 3) 
+    mask_tot_ls &= ~mask
+    
+    return mask_tot_ls
+
+
+def get_desi_lrg_sel(data): #shift = 0.0825
+
+    gflux = data['FLUX_G']
+    gMW = data['MW_TRANSMISSION_G']
+    gmag = 22.5 - 2.5*np.log10(gflux/gMW)
+
+    rflux = data['FLUX_R']
+    rMW = data['MW_TRANSMISSION_R']
+    rmag = 22.5 - 2.5*np.log10(rflux/rMW)
+
+    zflux = data['FLUX_Z']
+    zMW = data['MW_TRANSMISSION_Z']
+    zmag = 22.5 - 2.5*np.log10(zflux/zMW)
+
+    w1flux = data['FLUX_W1']
+    w1MW = data['MW_TRANSMISSION_W1']
+    w1mag = 22.5 - 2.5*np.log10(w1flux/w1MW)
+
+    fiberz_flux = data['FIBERFLUX_Z']
+    fiberz = 22.5 - 2.5*np.log10(fiberz_flux/zMW)
+
+    alpha_new = 1.8
+    beta_new = 17.14 
+    gamma_new = 16.33
+
+    mask_tot_ls = fiberz < 21.6
+    mask_tot_ls &= (zmag - w1mag) > 0.8*(rmag - zmag) - 0.6
+    mask_tot_ls &= ((gmag - w1mag) > 2.9) | ((rmag - w1mag) > 1.8)  # pq 2.97 et pas 2.9
+    mask_tot_ls &= ((rmag - w1mag > alpha_new*(w1mag - beta_new)) & ((rmag - w1mag > w1mag - gamma_new))) | (rmag - w1mag > 3.3)
+
+    # I would remove this cut
+    #mask_tot_ls &= (photz > 0) & (photz < 1.4)
+
+    # cut according Nobs,
+    mask = (data['NOBS_G'] == 0) | (data['NOBS_R'] == 0) | (data['NOBS_Z'] == 0) | (data['NOBS_W1'] == 0)
+    mask_tot_ls &= ~mask
+    # cut according bad photometry
+    mask = (data['FLUX_IVAR_R'] < 0) | (data['FLUX_IVAR_Z'] < 0) | (data['FLUX_IVAR_W1'] < 0) | (data['FLUX_G'] < 0)
+    mask_tot_ls &= ~mask
+
+    # Additionnal cuts from the DESI LRG TS
+    mask_tot_ls &= fiberz > 17.5
+    mask_tot_ls &= (data['GAIA_PHOT_G_MEAN_MAG'] > 18) | (data['GAIA_PHOT_G_MEAN_MAG'] == 0) 
+    mask_tot_ls &= ~(data['MASKBITS'] & 2**1 > 0)
+    mask_tot_ls &= ~(data['MASKBITS'] & 2**12 > 0)
+    mask_tot_ls &= ~(data['MASKBITS'] & 2**13 > 0)
+    
     mask_tot_ls &= ~mask
     
     return mask_tot_ls
@@ -590,9 +646,8 @@ def _get_sgr_stream(rot=120):
     return ra_bottom[index_sgr_bottom], dec_bottom[index_sgr_bottom], ra_top[index_sgr_top], dec_top[index_sgr_top]
 
 
-def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False, stardens=False, lsst_fp=False, desi_footprint_ext=False,
-              galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False,
-              rot=115, projection='mollweide', figsize=(11.0/1.5, 7.0/1.5), xpad=.5, labelpad=5, xlabel_labelpad=-190.0, ycb_pos=-0.05, cmap='RdYlBu_r', ticks=None, tick_labels=None, fontsize=10):
+def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False, stardens=False, lsst_fp=False,
+              galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, desi_footprint_ext=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False, rot=115, projection='mollweide', figsize=(11.0, 7.0), xpad=.5, labelpad=5, xlabel_labelpad=10.0, ycb_pos=-0.05, cmap='RdYlBu_r', ticks=None, tick_labels=None):
     """
     From E. Chaussidon
     Plot an healpix map in nested scheme with a specific projection.
@@ -640,10 +695,11 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
     cmap : ColorMap class of matplotlib
         Usefull to adapt the color. Especially to create grey area for the Y5 footprint.
         For instance: cmap = plt.get_cmap('jet').copy()
-        cmap.set_extremes(under='darkgrey')  # --> everything under min will be darkgrey
+                      cmap.set_extremes(under='darkgrey')  # --> everything under min will be darkgrey
     """
     # transform healpix map to 2d array
-    colors=['#348ABD', '#A60628', 'tab:blue','#467821','#D55E00','#CC79A7','#56B4E9','#009E73','gold','#0072B2']
+    colors=['#348ABD', '#A60628', '#7A68A6','#467821','#D55E00','#CC79A7','#56B4E9','#009E73','#F0E442','#0072B2']
+    colors=['#348ABD', '#A60628', 'darkorange','#467821','#D55E00','#CC79A7','#56B4E9','#009E73','darkseagreen','#0072B2']
 
     handles = None
     plt.figure(1)
@@ -718,14 +774,13 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                 ttt = tt[mm] - np.radians(115) + np.radians(rot)
                 ttt = np.remainder(ttt + np.pi*2, np.pi*2)
                 ttt[ttt > np.pi] -= np.pi*2
-                ax.plot(ttt, projection_dec([-20]*100)[mm], lw=1, c='tab:red', ls='--', zorder=100)
+                #ax.plot(ttt, projection_dec([-20]*100)[mm], lw=1, c='r', ls='--', zorder=100, label='BG cut')
             pol[0] -= np.radians(115)
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color='tab:red', lw=2, zorder=100)
-            ax.add_patch(Polygon(pol.T, True, facecolor='tab:red', alpha=0.2))
-        ax.plot(pol[0], pol[1], color='tab:red', lw=2, zorder=100, label='4MOST-CRS')
+            ax.plot(pol[0], pol[1], color='r', lw=2, zorder=100)
+        ax.plot(pol[0], pol[1], color='r', lw=2, zorder=100, label='4MOST-CRS')
 
     if qso_dr10_fp:
         pol = np.load(os.path.join(mask_dir, 'qso_dr10_sgc_poly.npy'), allow_pickle=True).T 
@@ -758,9 +813,16 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         d = Table.read(os.path.join(mask_dir,"desi-14k-footprint-dark.ecsv"))
         for cap in ["NGC", "SGC"]:
             sel = d["CAP"] == cap
-            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='darkblue', lw=2, zorder=10)
-            ax.add_patch(Polygon(np.array([projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel])]).T, True, facecolor='darkblue', alpha=0.2))
-        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='darkblue', lw=1.5, zorder=10, label='DESI')
+            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='k', lw=2, zorder=10)
+        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='k', lw=2, zorder=10, label='DESI Y5')
+    
+    if desi_footprint_ext:
+        import pandas as pd
+        d = pd.read_csv(os.path.join(mask_dir,'DESI_ext_fp.txt'), sep=' ', comment='#')
+        for cap in ["NGC", "SGC"]:
+            sel = d["CAP"] == cap
+            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='gray', lw=2, zorder=10)
+        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='gray', lw=2, zorder=10, label='DESI-ext')
 
     if lsst_fp:
         ra = np.array([ 75.234375, 76.640625, 78.046875, 79.453125, 80.859375,
@@ -983,19 +1045,9 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
                         2.38801546])
         ra = np.remainder(ra + 360, 360)
         ra[ra > 180] -= 360
-        #plt.scatter(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), s=3, color=colors[8])
-        plt.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), -np.pi/2, interpolate=True, color='#9f551e', alpha=0.3, label='LSST', ls='-', lw=0, zorder=20)
+        #ax.scatter(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), s=3, color='k')
+        ax.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), -np.pi/2, interpolate=True, color=colors[8], alpha=0.2, label='LSST')
         
-    if desi_footprint_ext:
-        import pandas as pd
-        d = pd.read_csv(os.path.join(mask_dir,'DESI_ext_fp.txt'), sep=' ', comment='#')
-        for cap in ["NGC", "SGC"]:
-            sel = d["CAP"] == cap
-            _ = ax.scatter(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='tab:blue', s=0.1, zorder=10, alpha=0.2)
-        
-        handles, labels = ax.get_legend_handles_labels()
-        handles +=[mlines.Line2D([], [], color='dodgerblue', linestyle='-', lw=2, alpha=0.3)]
-        labels += ['DESI-extension']
 
     if euclid_fp:
         for name in glob.glob(os.path.join(mask_dir, '*euclid*footprint*')):
@@ -1005,29 +1057,28 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color='#189fae', s=1, zorder=10, marker='o')
-        if handles is None:
-            handles, labels = ax.get_legend_handles_labels()
-        handles +=[mlines.Line2D([], [], color='#189fae', linestyle='-', lw=2)]
+            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color=colors[2], s=3, zorder=1, marker='o')
+        handles, labels = ax.get_legend_handles_labels()
+        import matplotlib.lines as mlines
+        handles +=[mlines.Line2D([], [], color=colors[2], linestyle='-', lw=2)]
         labels += ['Euclid']
-        
     if show_legend:
         if handles is not None:
-            ax.legend(handles, labels, ncol=2, loc='upper left',bbox_to_anchor=(0.6, 0.7, 0, 0.4))
+            ax.legend(handles, labels, ncol=2, loc='upper right')
         else:
-            ax.legend(ncol=2, loc='best', bbox_to_anchor=(0.5, 0., 0.5, 0.5))
+            ax.legend(ncol=2, loc='upper right')
 
     tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
     tick_labels = np.remainder(tick_labels + 360 + rot, 360)
     tick_labels = np.array([f'{lab}°' for lab in tick_labels])
     ax.set_xticklabels(tick_labels)
 
-    ax.set_xlabel('R.A. [deg]', labelpad=xlabel_labelpad, fontsize=fontsize)
+    ax.set_xlabel('R.A. [deg]', labelpad=xlabel_labelpad)
     ax.xaxis.set_label_position('top')
-    ax.set_ylabel('Dec. [deg]', fontsize=fontsize)
+    ax.set_ylabel('Dec. [deg]')
 
     ax.grid(True)
-    plt.tight_layout()
+
     if title:
         plt.title(title)
     if filename is not None:
@@ -1196,13 +1247,14 @@ _all_feature_label = [r'$\log_{10}$(Stellar Density)', 'E(B-V)', r'PSF Depth in 
 _all_feature_labels_dict = dict(zip(_all_feature_names, _all_feature_label))
 
 
-def plot_systmematics(targets_map, features_pixmap, feature_names=_all_feature_names, labels_map=None, ylim=0.2, nb_rows=3, fig_title=None, savename=None):
+def plot_systmematics(targets_map, features_pixmap, feature_names=_all_feature_names, labels_map=None, ylim=0.2, nb_rows=3, fig=None, fig_title=None, savename=None, show=False):
     
     nb_cols = (len(feature_names)+(nb_rows-1))//nb_rows
-    fig,axx = plt.subplots(nb_rows,nb_cols,figsize=(nb_cols*4,nb_rows*3), sharey=True)
-    axes=axx.flatten()
-    if fig_title:
-        fig.suptitle(fig_title, fontsize=15)
+    if fig is None:
+        fig, axx = plt.subplots(nb_rows,nb_cols,figsize=(nb_cols*4,nb_rows*3), sharey=True)
+        axes=axx.flatten()
+        if fig_title:
+            fig.suptitle(fig_title, fontsize=15)
 
     if not isinstance(targets_map,list):
         targets_map = [targets_map]
@@ -1259,7 +1311,9 @@ def plot_systmematics(targets_map, features_pixmap, feature_names=_all_feature_n
     fig.tight_layout()
     if savename is not None:
         fig.savefig(savename, facecolor='w', bbox_inches='tight', pad_inches=0.1, dpi=400)
-    fig.show()
+    if show: 
+         fig.show()
+    return fig
 
 def get_weight_from_wmap(ra, dec, wmap, nest=True, lonlat=True):
     nside = hp.npix2nside(wmap.size)
