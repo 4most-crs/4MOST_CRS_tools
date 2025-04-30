@@ -85,7 +85,8 @@ def get_4most_bg_sel_v2(cat, mag_r_lim=19.25):
     # sel &= mag_r-mag_z < (0.9*(mag_g-mag_r)-0.2)
     sel &= mag_r-mag_z < (0.93*(mag_g-mag_r)-0.27)
     sel &= mag_r-mag_z > (0.4*(mag_g-mag_r)+0.07)
-    # sel &= mag_g -mag_r > 0.95
+    sel &= mag_g -mag_r > 0.95
+	
 
     # Additionnal cut on stars with parallax or pmra or pmdec !=0 and snr >3
     snr_par = np.abs(cat['PARALLAX']*np.sqrt(cat['PARALLAX_IVAR']))
