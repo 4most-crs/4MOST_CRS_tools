@@ -192,8 +192,8 @@ def get_4most_lrg_new_sel(data, shift = 0.06): #shift = 0.0825
 
     # cut according Nobs,
     if 'NOBS_G' in data.columns():
-        mask = (cat['NOBS_G'] == 0) | (cat['NOBS_R'] == 0) | (cat['NOBS_Z'] == 0)
-        sel &= ~mask
+        mask = (data['NOBS_G'] == 0) | (data['NOBS_R'] == 0) | (data['NOBS_Z'] == 0)
+        mask_tot_ls &= ~mask
     
     # cut according bad photometry
     mask = (data['FLUX_IVAR_R'] < 0) | (data['FLUX_IVAR_Z'] < 0) | (data['FLUX_IVAR_W1'] < 0) | (data['FLUX_G'] < 0)
