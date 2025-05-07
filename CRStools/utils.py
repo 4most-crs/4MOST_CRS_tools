@@ -410,7 +410,7 @@ def get_4most_skyaera(regions=['ngc', 'sgc'], polygon_dir=None, seed=42):
     regions = [regions] if isinstance(regions, str) else regions
     mask = []
     for reg in regions:
-        mask += [get_4most_s8foot(ra, dec, regions=reg.lower())]
+        mask += [get_4most_s8foot(ra, dec, regions=reg.lower(),polygon_dir=polygon_dir)]
         print(f'Area {reg}: {mask[-1].sum()*full_sky/mask[-1].size}')
     print(f'Total area: {np.concatenate(mask).sum()*full_sky/mask[0].size}')
     
