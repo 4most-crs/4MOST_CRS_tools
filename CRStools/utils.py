@@ -249,7 +249,7 @@ def get_skyaera(polygon, seed=42):
     return mask.sum()*full_sky/mask.size
 
 
-def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, polygon_dir=None):
+def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, polygon_dir=None):
     '''
         Return mask where True values are position inside the 4most S8 footprint. Caveat: The initial polygons are rotated by 115 degrees.  
         
@@ -262,8 +262,6 @@ def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, 
             Declination in radians or degrees.
             
         (Optional) 
-		bg_fp: bool, default: False
-            Add additional cut to DEC < -20 for Bright galaxies
             
         reg: str or list,  default: ['ngc', 'sgc']
             Region to apply the mask, 'ngc' or 'sgc' only
@@ -290,14 +288,11 @@ def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, bg_fp=False, 
     regions = [regions] if isinstance(regions, str) else regions
 
     for reg in regions:
-        polygon = Path(np.load(os.path.join(polygon_dir,f'4most_{reg}_newfootprint.npy'), allow_pickle=True))
+        polygon = Path(np.load(os.path.join(polygon_dir,f'4most_{reg.lower()}_newfootprint.npy'), allow_pickle=True))
         m = polygon.contains_points(np.array([ra,dec]).T)
-        if reg =='sgc':
-            m &= dec < np.radians(-20)
-        if bg_fp & (reg =='ngc'):
-            m &= dec < np.radians(-20)
+        # if reg =='sgc':
+        #     m &= dec < np.radians(-20)
         mask |= m
-    mask &= dec < np.radians(-7.5)
     return mask
 
 
