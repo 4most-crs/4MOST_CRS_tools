@@ -543,7 +543,7 @@ class Sagittarius(coord.BaseCoordinateFrame):
             coord.RepresentationMapping('lat', 'Beta'),
             coord.RepresentationMapping('distance', 'distance')]
     }
-mat
+
 
 def SGR_MATRIX():
     """Build the transformation matric from Galactic spherical to heliocentric Sgr coordinates based on Law & Majewski 2010."""
