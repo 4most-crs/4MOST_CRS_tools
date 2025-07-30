@@ -38,6 +38,14 @@ def get_4most_bg_old_vista_sel(j,k,w1,r, jmin = 16, jmax= 18.25, rmax= 22):
     sel       = (parent) & (jw1>1.6*jk-1.6) & (jw1<1.6*jk-0.5) & (jw1>-2.5*jk+0.1) & (jw1<-0.5*jk+0.1)
     return sel
 
+def get_4most_lrg_old_vista_sel(j,k,w1, jmin = 18, jmax= 19.5):
+    jw1 = j-w1
+    jk = j-k
+    parent    = (j>jmin) & (j<jmax) & (jw1 < 1.2) & (jk<1.5)
+    sel       = (parent) & (jw1>0.5*jk+0.05) & (jw1<0.5*jk+0.5) & (jw1> -0.5*jk+0.1)
+    return sel
+
+    
 def get_4most_bg_sel_v2(cat, mag_r_lim=19.25):
     # new color_cut: mag_r-mag_z < (0.93(mag_g-mag_r)-0.27) & mag_r-mag_z > (0.4(mag_g-mag_r)+0.07) & mag_r <19.25 (blue)
 
@@ -93,7 +101,8 @@ def get_4most_bg_sel_v2(cat, mag_r_lim=19.25):
     snr_pmra = np.abs(cat['PMRA']*np.sqrt(cat['PMRA_IVAR']))
     snr_pmdec = np.abs(cat['PMDEC']*np.sqrt(cat['PMDEC_IVAR']))
     mask = cat['PARALLAX'] != 0
-    mask &= (snr_pmra > 3) | (snr_pmra > 3) | (snr_pmdec > 3) 
+    # mask &= (snr_pmra > 3) | (snr_pmra > 3) | (snr_pmdec > 3) 
+    mask &= (snr_par > 3) | (snr_pmra > 3) | (snr_pmdec > 3) 
     sel &= ~mask
     # Mag cut
     sel &= mag_r < mag_r_lim
@@ -101,60 +110,60 @@ def get_4most_bg_sel_v2(cat, mag_r_lim=19.25):
 
 
 
-def get_4most_bg_sel(cat, mag_r_lim=19.08):
+# def get_4most_bg_sel(cat, mag_r_lim=19.08):
     
-    not_in_gaia = cat['REF_CAT'] == '  '
-    raw_mag_r = 22.5-2.5*np.log10(cat['FLUX_R'])
+#     not_in_gaia = cat['REF_CAT'] == '  '
+#     raw_mag_r = 22.5-2.5*np.log10(cat['FLUX_R'])
     
-    mag_r = 22.5-2.5*np.log10(cat['FLUX_R']/cat['MW_TRANSMISSION_R'])
-    mag_z = 22.5-2.5*np.log10(cat['FLUX_Z']/cat['MW_TRANSMISSION_Z'])
-    sel = ((cat['GAIA_PHOT_G_MEAN_MAG'] - raw_mag_r) > 0.6) & ~not_in_gaia
-    sel |= not_in_gaia
+#     mag_r = 22.5-2.5*np.log10(cat['FLUX_R']/cat['MW_TRANSMISSION_R'])
+#     mag_z = 22.5-2.5*np.log10(cat['FLUX_Z']/cat['MW_TRANSMISSION_Z'])
+#     sel = ((cat['GAIA_PHOT_G_MEAN_MAG'] - raw_mag_r) > 0.6) & ~not_in_gaia
+#     sel |= not_in_gaia
 
-    #maskbit arround bright stars
-    sel &= ~(cat['MASKBITS'] & 2**1 > 0)
-    sel &= ~(cat['MASKBITS'] & 2**11 > 0)
-    #maskbit arround large galaxies
-    sel &= ~(cat['MASKBITS'] & 2**12 > 0)
-    sel &= ~(cat['MASKBITS'] & 2**13 > 0)
+#     #maskbit arround bright stars
+#     sel &= ~(cat['MASKBITS'] & 2**1 > 0)
+#     sel &= ~(cat['MASKBITS'] & 2**11 > 0)
+#     #maskbit arround large galaxies
+#     sel &= ~(cat['MASKBITS'] & 2**12 > 0)
+#     sel &= ~(cat['MASKBITS'] & 2**13 > 0)
 
-    #fiber mag cut
-    fib_mag_r = 22.5-2.5*np.log10(cat['FIBERFLUX_R']/cat['MW_TRANSMISSION_R'])
-    mask = mag_r < 17.8
-    mask &= fib_mag_r < (22.9 + (mag_r - 17.8))
-    mask1 = (mag_r > 17.8) & (mag_r < 20)
-    mask1 &= fib_mag_r < 22.9
-    sel &= (mask|mask1)
+#     #fiber mag cut
+#     fib_mag_r = 22.5-2.5*np.log10(cat['FIBERFLUX_R']/cat['MW_TRANSMISSION_R'])
+#     mask = mag_r < 17.8
+#     mask &= fib_mag_r < (22.9 + (mag_r - 17.8))
+#     mask1 = (mag_r > 17.8) & (mag_r < 20)
+#     mask1 &= fib_mag_r < 22.9
+#     sel &= (mask|mask1)
 
-    # cut spurious objects
-    mag_g = 22.5-2.5*np.log10(cat['FLUX_G']/cat['MW_TRANSMISSION_G'])
-    mask = (mag_g-mag_r < -1) | (mag_g-mag_r > 4)
-    mask |= (mag_r-mag_z < -1) | (mag_r-mag_z > 4)
-    sel &= ~mask
+#     # cut spurious objects
+#     mag_g = 22.5-2.5*np.log10(cat['FLUX_G']/cat['MW_TRANSMISSION_G'])
+#     mask = (mag_g-mag_r < -1) | (mag_g-mag_r > 4)
+#     mask |= (mag_r-mag_z < -1) | (mag_r-mag_z > 4)
+#     sel &= ~mask
 
-    # cut according Nobs
-    if 'NOBS_G' in cat.columns():
-        mask = (cat['NOBS_G'] == 0) | (cat['NOBS_R'] == 0) | (cat['NOBS_Z'] == 0)
-        sel &= ~mask
+#     # cut according Nobs
+#     if 'NOBS_G' in cat.columns():
+#         mask = (cat['NOBS_G'] == 0) | (cat['NOBS_R'] == 0) | (cat['NOBS_Z'] == 0)
+#         sel &= ~mask
 
-    # fibertot mag cut
-    fibtot_mag_r = 22.5-2.5*np.log10(cat['FIBERTOTFLUX_R']/cat['MW_TRANSMISSION_R'])
-    mask = (mag_r > 12) & (fibtot_mag_r < 15) 
-    sel &= ~mask
+#     # fibertot mag cut
+#     fibtot_mag_r = 22.5-2.5*np.log10(cat['FIBERTOTFLUX_R']/cat['MW_TRANSMISSION_R'])
+#     mask = (mag_r > 12) & (fibtot_mag_r < 15) 
+#     sel &= ~mask
 
-    # Additional photometric cut
-    sel &= mag_r-mag_z < (0.9*(mag_g-mag_r)-0.2)
+#     # Additional photometric cut
+#     sel &= mag_r-mag_z < (0.9*(mag_g-mag_r)-0.2)
     
-    # Additionnal cut on stars with parallax or pmra or pmdec !=0 and snr >3
-    snr_par = np.abs(cat['PARALLAX']*np.sqrt(cat['PARALLAX_IVAR']))
-    snr_pmra = np.abs(cat['PMRA']*np.sqrt(cat['PMRA_IVAR']))
-    snr_pmdec = np.abs(cat['PMDEC']*np.sqrt(cat['PMDEC_IVAR']))
-    mask = cat['PARALLAX'] != 0
-    mask &= (snr_pmra > 3) | (snr_pmra > 3) | (snr_pmdec > 3) 
-    sel &= ~mask
-    # Mag cut
-    sel &= mag_r < mag_r_lim
-    return sel
+#     # Additionnal cut on stars with parallax or pmra or pmdec !=0 and snr >3
+#     snr_par = np.abs(cat['PARALLAX']*np.sqrt(cat['PARALLAX_IVAR']))
+#     snr_pmra = np.abs(cat['PMRA']*np.sqrt(cat['PMRA_IVAR']))
+#     snr_pmdec = np.abs(cat['PMDEC']*np.sqrt(cat['PMDEC_IVAR']))
+#     mask = cat['PARALLAX'] != 0
+#     mask &= (snr_par > 3) | (snr_pmra > 3) | (snr_pmdec > 3) 
+#     sel &= ~mask
+#     # Mag cut
+#     sel &= mag_r < mag_r_lim
+#     return sel
 
 
 def get_4most_lrg_new_sel(data, shift = 0.06): #shift = 0.0825
@@ -196,12 +205,13 @@ def get_4most_lrg_new_sel(data, shift = 0.06): #shift = 0.0825
         mask_tot_ls &= ~mask
     
     # cut according bad photometry
-    mask = (data['FLUX_IVAR_R'] < 0) | (data['FLUX_IVAR_Z'] < 0) | (data['FLUX_IVAR_W1'] < 0) | (data['FLUX_G'] < 0)
+    mask = (data['FLUX_IVAR_R'] < 0) | (data['FLUX_IVAR_Z'] < 0) | (data['FLUX_IVAR_W1'] < 0) | (data['FLUX_IVAR_G'] < 0)
     mask_tot_ls &= ~mask
 
     # Additionnal cuts from the DESI LRG TS
     mask_tot_ls &= fiberz > 17.5
-    mask_tot_ls &= (data['GAIA_PHOT_G_MEAN_MAG'] > 18) | (data['GAIA_PHOT_G_MEAN_MAG'] == 0) 
+    # mask_tot_ls &= (data['GAIA_PHOT_G_MEAN_MAG'] > 18) | (data['GAIA_PHOT_G_MEAN_MAG'] == 0) 
+    mask_tot_ls &= data['GAIA_PHOT_G_MEAN_MAG'] == 0
     mask_tot_ls &= ~(data['MASKBITS'] & 2**1 > 0)
     mask_tot_ls &= ~(data['MASKBITS'] & 2**11 > 0)
     mask_tot_ls &= ~(data['MASKBITS'] & 2**12 > 0)
@@ -258,6 +268,58 @@ def get_desi_bright_bgs_sel(cat, mag_r_lim=19.5):
     sel &= mag_r < mag_r_lim
     return sel	
    
+
+def get_desi_lrg_sel(data): #shift = 0.0825
+
+    gflux = data['FLUX_G']
+    gMW = data['MW_TRANSMISSION_G']
+    gmag = 22.5 - 2.5*np.log10(gflux/gMW)
+
+    rflux = data['FLUX_R']
+    rMW = data['MW_TRANSMISSION_R']
+    rmag = 22.5 - 2.5*np.log10(rflux/rMW)
+
+    zflux = data['FLUX_Z']
+    zMW = data['MW_TRANSMISSION_Z']
+    zmag = 22.5 - 2.5*np.log10(zflux/zMW)
+
+    w1flux = data['FLUX_W1']
+    w1MW = data['MW_TRANSMISSION_W1']
+    w1mag = 22.5 - 2.5*np.log10(w1flux/w1MW)
+
+    fiberz_flux = data['FIBERFLUX_Z']
+    fiberz = 22.5 - 2.5*np.log10(fiberz_flux/zMW)
+
+    alpha_new = 1.8
+    beta_new = 17.14 
+    gamma_new = 16.33
+
+    mask_tot_ls = fiberz < 21.6
+    mask_tot_ls &= (zmag - w1mag) > 0.8*(rmag - zmag) - 0.6
+    mask_tot_ls &= ((gmag - w1mag) > 2.9) | ((rmag - w1mag) > 1.8)  # pq 2.97 et pas 2.9
+    mask_tot_ls &= ((rmag - w1mag > alpha_new*(w1mag - beta_new)) & ((rmag - w1mag > w1mag - gamma_new))) | (rmag - w1mag > 3.3)
+
+    # I would remove this cut
+    #mask_tot_ls &= (photz > 0) & (photz < 1.4)
+
+    # cut according Nobs,
+    mask = (data['NOBS_G'] == 0) | (data['NOBS_R'] == 0) | (data['NOBS_Z'] == 0) | (data['NOBS_W1'] == 0)
+    mask_tot_ls &= ~mask
+    # cut according bad photometry
+    mask = (data['FLUX_IVAR_R'] < 0) | (data['FLUX_IVAR_Z'] < 0) | (data['FLUX_IVAR_W1'] < 0) | (data['FLUX_IVAR_G'] < 0)
+    mask_tot_ls &= ~mask
+
+    # Additionnal cuts from the DESI LRG TS
+    mask_tot_ls &= fiberz > 17.5
+    mask_tot_ls &= (data['GAIA_PHOT_G_MEAN_MAG'] > 18) | (data['GAIA_PHOT_G_MEAN_MAG'] == 0) 
+    mask_tot_ls &= ~(data['MASKBITS'] & 2**1 > 0)
+    mask_tot_ls &= ~(data['MASKBITS'] & 2**12 > 0)
+    mask_tot_ls &= ~(data['MASKBITS'] & 2**13 > 0)
+    
+    mask_tot_ls &= ~mask
+    
+    return mask_tot_ls
+
     
 def projection_ra(ra, ra_center=0):
     """Shift `ra` to the origin of the Axes object and convert to radians.
@@ -361,8 +423,7 @@ def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, polygon_dir=N
     for reg in regions:
         polygon = Path(np.load(os.path.join(polygon_dir,f'4most_{reg.lower()}_newfootprint.npy'), allow_pickle=True))
         m = polygon.contains_points(np.array([ra,dec]).T)
-        # if reg =='sgc':
-        #     m &= dec < np.radians(-20)
+        m &= dec < np.radians(-20)
         mask |= m
     return mask
 
@@ -654,7 +715,7 @@ def _get_sgr_stream(rot=120):
     return ra_bottom[index_sgr_bottom], dec_bottom[index_sgr_bottom], ra_top[index_sgr_top], dec_top[index_sgr_top]
 
 
-def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False, stardens=False, lsst_fp=False, desi_footprint_ext=False, des_footprint=False, galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False, rot=115, projection='mollweide', figsize=(11.0/1.5, 7.0/1.5), xpad=.5, labelpad=5, xlabel_labelpad=7.0, ycb_pos=-0.07, cmap='RdYlBu_r', ticks=None, tick_labels=None, fontsize=10):
+def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False, stardens=False, lsst_fp=False, desi_footprint_ext=False, des_footprint=False, galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False, rot=115, projection='mollweide', figsize=(11.0/1.5, 7.0/1.5), xpad=.5, labelpad=5, xlabel_labelpad=7.0, ycb_pos=-0.07, cmap='RdYlBu_r', ticks=None, tick_labels=None, fontsize=10, fontsize_legend=7):
     """
     From E. Chaussidon
     Plot an healpix map in nested scheme with a specific projection.
@@ -1046,14 +1107,14 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         ra = np.remainder(ra + 360, 360)
         ra[ra > 180] -= 360
         #   plt.scatter(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), s=3, color=colors[8])
-        ax.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), -np.pi/2, interpolate=True, color='k', alpha=0.3, label='LSST', ls='-', lw=0, zorder=20)
+        ax.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), -np.pi/2, interpolate=True, color='#c59a6e', alpha=0.4, label='LSST', ls='-', lw=0, zorder=20)
         
     if desi_footprint_ext:
         import pandas as pd
         d = pd.read_csv(os.path.join(mask_dir,'DESI_ext_fp.txt'), sep=' ', comment='#')
         for cap in ["NGC", "SGC"]:
             sel = d["CAP"] == cap
-            _ = ax.scatter(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='tab:blue', s=0.1, zorder=10, alpha=0.2)
+            _ = ax.scatter(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='dodgerblue', s=0.3, zorder=10, alpha=0.2)
         
         handles, labels = ax.get_legend_handles_labels()
         handles +=[mlines.Line2D([], [], color='dodgerblue', linestyle='-', lw=2, alpha=0.3)]
@@ -1067,7 +1128,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color='#189fae', s=1, zorder=10, marker='o')
+            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color='#189fae', s=0.8, zorder=10, marker='o')
         if handles is None:
             handles, labels = ax.get_legend_handles_labels()
         handles +=[mlines.Line2D([], [], color='#189fae', linestyle='-', lw=2)]
@@ -1090,9 +1151,9 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         
     if show_legend:
         if handles is not None:
-            ax.legend(handles, labels, ncol=2, loc='upper left', bbox_to_anchor=(0.6, 0.7, 0, 0.4))
+            ax.legend(handles, labels, ncol=2, loc='upper left', bbox_to_anchor=(0.6, 0.7, 0, 0.4), fontsize=fontsize_legend)
         else:
-            ax.legend(ncol=2, loc='upper left', bbox_to_anchor=(0.6, 0.7, 0, 0.4))
+            ax.legend(ncol=2, loc='upper left', bbox_to_anchor=(0.6, 0.7, 0, 0.4), fontsize=fontsize_legend)
 
     tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
     tick_labels = np.remainder(tick_labels + 360 + rot, 360)
@@ -1126,11 +1187,11 @@ def healpix_in_sgc(nside, nest=False):
     theta, phi = hp.pix2ang(nside, range(hp.nside2npix(nside)),nest=nest)  
     ra= phi*180./np.pi
     dec = 90.-(theta*180./np.pi)
-    mask_NGC = SkyCoord(ra,dec , frame='icrs', unit='deg').transform_to('galactic').b > 0
+    mask_NGC = ra_dec_in_sgc(ra, dec)
     return mask_NGC
 
 def ra_dec_in_sgc(ra, dec, unit='deg'):
-    return SkyCoord(ra, dec, frame='icrs', unit=unit).transform_to('galactic').b > 0
+    return SkyCoord(ra, dec, frame='icrs', unit=unit).transform_to('galactic').b < 0
 
 
 
