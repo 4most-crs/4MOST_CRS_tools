@@ -543,7 +543,7 @@ class Sagittarius(coord.BaseCoordinateFrame):
             coord.RepresentationMapping('lat', 'Beta'),
             coord.RepresentationMapping('distance', 'distance')]
     }
-mat
+
 
 def SGR_MATRIX():
     """Build the transformation matric from Galactic spherical to heliocentric Sgr coordinates based on Law & Majewski 2010."""
@@ -654,9 +654,7 @@ def _get_sgr_stream(rot=120):
     return ra_bottom[index_sgr_bottom], dec_bottom[index_sgr_bottom], ra_top[index_sgr_top], dec_top[index_sgr_top]
 
 
-def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False, stardens=False, lsst_fp=False, desi_footprint_ext=False, des_footprint=False,
-              galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False,
-              rot=115, projection='mollweide', figsize=(11.0/1.5, 7.0/1.5), xpad=.5, labelpad=5, xlabel_labelpad=7.0, ycb_pos=-0.07, cmap='RdYlBu_r', ticks=None, tick_labels=None, fontsize=10):
+def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False, stardens=False, lsst_fp=False, desi_footprint_ext=False, des_footprint=False, galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False, rot=115, projection='mollweide', figsize=(11.0/1.5, 7.0/1.5), xpad=.5, labelpad=5, xlabel_labelpad=7.0, ycb_pos=-0.07, cmap='RdYlBu_r', ticks=None, tick_labels=None, fontsize=10):
     """
     From E. Chaussidon
     Plot an healpix map in nested scheme with a specific projection.
