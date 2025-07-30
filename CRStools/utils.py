@@ -831,24 +831,15 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         
         for reg in ['ngc','sgc']:
             pol = np.load(os.path.join(mask_dir, f'4most_{reg}_newfootprint.npy'), allow_pickle=True).T
-            m=pol[1] < np.radians(-20)
-            if reg == 'ngc':
-                rra = np.linspace(0,360, 100)
-                tt = projection_ra(rra, ra_center=115)
-                tt = np.remainder(tt + np.pi*2, np.pi*2)
-                tt[tt > np.pi] -= np.pi*2
-                mm = (tt<pol[0][m].max()) & (tt>pol[0][m].min())
-                ttt = tt[mm] - np.radians(115) + np.radians(rot)
-                ttt = np.remainder(ttt + np.pi*2, np.pi*2)
-                ttt[ttt > np.pi] -= np.pi*2
-                ax.plot(ttt, projection_dec([-20]*100)[mm], lw=1, c='tab:red', ls='--', zorder=100)
-            pol[0] -= np.radians(115)
-            pol[0] += np.radians(rot)
-            pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
-            pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.plot(pol[0], pol[1], color='tab:red', lw=2, zorder=100)
-            ax.add_patch(Polygon(pol.T, facecolor='tab:red', alpha=0.2))
-        ax.plot(pol[0], pol[1], color='tab:red', lw=2, zorder=100, label='4MOST-CRS')
+            mask_decm20 = pol[1] < np.radians(-20)
+            ra, dec = pol[0][mask_decm20], pol[1][mask_decm20]
+            ra -= np.radians(115)
+            ra += np.radians(rot)
+            ra = np.remainder(ra + np.pi*2, np.pi*2)
+            ra[ra > np.pi] -= np.pi*2
+            ax.plot(ra, dec, color='tab:red', lw=2, zorder=100)
+            ax.add_patch(Polygon(pol.T[mask_decm20], facecolor='tab:red', alpha=0.2))
+        ax.plot(ra, dec, color='tab:red', lw=2, zorder=100, label='4MOST-CRS')
 
     if qso_dr10_fp:
         pol = np.load(os.path.join(mask_dir, 'qso_dr10_sgc_poly.npy'), allow_pickle=True).T 
