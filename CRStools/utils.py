@@ -413,6 +413,7 @@ def get_4most_skyaera(regions=['ngc', 'sgc'], polygon_dir=None, seed=42):
         mask += [get_4most_s8foot(ra, dec, regions=reg.lower(),polygon_dir=polygon_dir)]
         print(f'Area {reg}: {mask[-1].sum()*full_sky/mask[-1].size}')
     print(f'Total area: {np.concatenate(mask).sum()*full_sky/mask[0].size}')
+    return np.concatenate(mask).sum()*full_sky/mask[0].size
     
 
 # From A. Raichoor library
@@ -1395,3 +1396,486 @@ def plot_systmematics(targets_map, features_pixmap, feature_names=_all_feature_n
     fig.show()
 
     return fig
+
+
+
+def plot_moll_behnood(hmap, whmap=None, min=None, max=None, nest=False, title='', label=r'[$\#$ deg$^{-2}$]', filename=None, show=True, mask_dir=None, euclid_fp=False, stardens=False, lsst_fp=False, desi_footprint_ext=False, des_footprint=False,
+              galactic_plane=True, ecliptic_plane=False, sgr_plane=False, stream_plane=False, show_legend=True, fourmost_footprint=False, desi_footprint=False, qso_dr10_fp=False, atlas_fp=False, qso_fp=False,
+              rot=115, projection='mollweide', figsize=(2*10/3, 7.0/1.5), xpad=.5, labelpad=5, xlabel_labelpad=7.0, ycb_pos=-0.07, cmap='RdYlBu_r', ticks=None, tick_labels=None, fontsize=10, ax=None):
+    """
+    From E. Chaussidon
+    Plot an healpix map in nested scheme with a specific projection.
+
+    Parameters
+    ----------
+    hmap : float array
+        Healpix map 
+    whmap : float array
+        Weighted Healpix map 
+    min : float
+        Minimum value for the colorbar
+    max : float
+        Maximum value for the colorbar
+    title : str
+        Title for the figure. Title is just above the colorbar
+    label : str
+        Colobar label. Label is just on the right of the colorbar
+    filename : str
+        Path where the figure will be saved. If filename is not None, the figure is saved.
+    show : bool
+        If true display the figure
+    galactic_plane / ecliptic_plane / sgr_plane / stream_plane : bool
+        Display the corresponding plane on the figure.
+    show_lengend : bool
+        If True, display the legend corresponding to the plotted plane. A warning is raised if show_lengend is True and no plane is plotted.
+    fourmost_footprint : bool
+        If True, display 4most footprint
+    desi_footprint : bool
+        If True, display desi y5 footprint
+    rot : float
+        Rotation of the R.A. axis for sky visualisation plot. In DESI, it should be rot=120.
+    projection : str
+        Projection used to plot the map. In DESI, it should be mollweide
+    figsize : float tuple
+        Size of the figure
+    xpad : float
+        X position of label. Need to be adpated if figsize is modified.
+    labelpad : float
+        Y position of label. Need to be adpated if figsize is modified.
+    xlabel_  : float
+        Position of the xlabel (R.A.). Need to be adpated if figsize is modified.
+    ycb_pos : float
+        Y position of the colorbar. Need to be adpated if figsize is modified or if title is too long.
+    cmap : ColorMap class of matplotlib
+        Usefull to adapt the color. Especially to create grey area for the Y5 footprint.
+        For instance: cmap = plt.get_cmap('jet').copy()
+        cmap.set_extremes(under='darkgrey')  # --> everything under min will be darkgrey
+    """
+    # transform healpix map to 2d array
+    colors=['#006BA4', '#FF800E', '#ABABAB', 
+            '#595959', '#5F9ED1', '#C85200', 
+            '#898989', '#A2C8EC', '#FFBC79', 
+            '#CFCFCF']
+    colors_survey = {
+        'CRS': colors[5],
+        'DESI': colors[0],
+        'DESI_ext': colors[4],
+        'DES': colors[3],
+        'euclid': colors[1],
+        'LSST': colors[6],
+        'qso': colors[2],
+        'qso_atlas': colors[4],
+    }
+    handles = None
+    plt.figure(1)
+    m = hp.ma(hmap) if whmap is None else hp.ma(whmap/hmap)
+    mask_2 = np.zeros(len(m))
+    mask_2[m <= 0] = 1
+    m.mask=mask_2
+    map_to_plot = hp.cartview(m, nest=nest, rot=rot, flip='geo', fig=1, return_projected_map=True)
+
+    # if stardens:
+    #     f_stardens = os.path.join(os.path.dirname(__file__), 'data', 'pixweight-dr10-128-new.fits')
+    #     STARDENS = fitsio.FITS(f_stardens)[1]['STARDENS'][:]
+    #     starmap_to_plot = hp.cartview(STARDENS, nest=True, rot=rot, flip='geo', fig=1, return_projected_map=True)
+    plt.close()
+
+    # build ra, dec meshgrid to plot 2d array
+    ra_edge = np.linspace(-180, 180, map_to_plot.shape[1] + 1)
+    dec_edge = np.linspace(-90, 90, map_to_plot.shape[0] + 1)
+
+    ra_edge[ra_edge > 180] -= 360    # scale conversion to [-180, 180]
+    ra_edge = -ra_edge               # reverse the scale: East to the left
+
+    ra_grid, dec_grid = np.meshgrid(ra_edge, dec_edge)
+    
+    if ax is None:
+        plt.figure(figsize=figsize)
+        ax = plt.subplot(111, projection=projection)
+        plt.subplots_adjust(left=0.14, bottom=0.18, right=0.96, top=0.90)
+
+    mesh = plt.pcolormesh(np.radians(ra_grid), np.radians(dec_grid), map_to_plot, vmin=min, vmax=max, cmap=cmap, edgecolor='none', lw=0)
+
+    # if stardens:
+    #     ttt= ax.pcolormesh(np.radians(ra_grid), np.radians(dec_grid), starmap_to_plot, vmin=5000, vmax=30000, cmap='binary', edgecolor='none', lw=0, alpha=0.5)
+        
+    if mask_dir is None:
+         mask_dir = os.path.join(os.path.dirname(__file__), 'mask_fp')
+
+    # if label is not None:
+    #     from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+    #     ax_cb = inset_axes(ax, width="30%", height="4%", loc='lower left', bbox_to_anchor=(0.346, ycb_pos, 1.0, 1.0), bbox_transform=ax.transAxes, borderpad=0)
+    #     cb = plt.colorbar(mesh, ax=ax, cax=ax_cb, orientation='horizontal', shrink=0.8, aspect=40, ticks=ticks)
+    #     cb.outline.set_visible(False)
+    #     cb.set_label(label, x=xpad, labelpad=labelpad)
+    #     if tick_labels is not None:
+    #         cb.ax.set_xticklabels(tick_labels)  # horizontal colorbar
+    #     cb.ax.tick_params(size=0)
+
+    if galactic_plane:
+        ra, dec = _get_galactic_plane(rot=rot)
+        ax.plot(np.radians(ra), np.radians(dec), linestyle='-', linewidth=0.8, color='black', label='Galactic plane')
+    if ecliptic_plane:
+        ra, dec = _get_ecliptic_plane(rot=rot)
+        ax.plot(np.radians(ra), np.radians(dec), linestyle=':', linewidth=0.8, color='slategrey', label='Ecliptic plane')
+    if sgr_plane:
+        ra, dec = _get_sgr_plane(rot=rot)
+        ax.plot(np.radians(ra), np.radians(dec), linestyle='--', linewidth=0.8, color='navy', label='Sgr. plane')
+        if stream_plane:
+            ra_bottom, dec_bottom, ra_top, dec_top = _get_sgr_stream(rot=rot)
+            ax.plot(np.radians(ra), np.radians(dec), linestyle=':', linewidth=0.8, color='navy')
+            ax.plot(np.radians(ra), np.radians(dec), linestyle=':', linewidth=0.8, color='navy')
+
+    if fourmost_footprint:
+    
+        for reg in ['ngc','sgc']:
+            pol = np.load(os.path.join(mask_dir, f'4most_{reg}_newfootprint.npy'), allow_pickle=True).T
+            m=pol[1] < np.radians(-20)
+            if reg == 'ngc':
+                rra = np.linspace(0,360, 100)
+                tt = projection_ra(rra, ra_center=115)
+                tt = np.remainder(tt + np.pi*2, np.pi*2)
+                tt[tt > np.pi] -= np.pi*2
+                mm = (tt<pol[0][m].max()) & (tt>pol[0][m].min())
+                ttt = tt[mm] - np.radians(115) + np.radians(rot)
+                ttt = np.remainder(ttt + np.pi*2, np.pi*2)
+                ttt[ttt > np.pi] -= np.pi*2
+                ax.plot(ttt, projection_dec([-20]*100)[mm], lw=1, c=colors_survey['CRS'], ls='--', zorder=100)
+            pol[0] -= np.radians(115)
+            pol[0] += np.radians(rot)
+            pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
+            pol[0][pol[0] > np.pi] -= np.pi*2
+            ax.plot(pol[0], pol[1], color=colors_survey['CRS'], lw=1.5, zorder=100)
+            ax.add_patch(Polygon(pol.T, facecolor=colors_survey['CRS'], alpha=0.2))
+        ax.plot(pol[0], pol[1], color=colors_survey['CRS'], lw=1.5, zorder=100, label='4MOST-CRS')
+
+    if qso_dr10_fp:
+        pol = np.load(os.path.join(mask_dir, 'qso_dr10_sgc_poly.npy'), allow_pickle=True).T 
+        pol[0] += np.radians(rot)
+        pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
+        pol[0][pol[0] > np.pi] -= np.pi*2
+        ax.plot(pol[0], pol[1], color=colors_survey['qso'], lw=1, zorder=10, label='DR10')
+
+    if atlas_fp:
+        for reg in ['ngc','sgc']:
+            pol = np.load(os.path.join(mask_dir, f'atlas_{reg}_poly.npy'), allow_pickle=True).T 
+            pol[0] -= np.radians(115)
+            pol[0] += np.radians(rot)
+            pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
+            pol[0][pol[0] > np.pi] -= np.pi*2
+            ax.plot(pol[0], pol[1], color=colors_survey['qso_atlas'], lw=1, zorder=10)
+        ax.plot(pol[0], pol[1], color=colors_survey['qso_atlas'], lw=1, zorder=10, label='ATLAS')
+
+    if qso_fp:
+        for name, rot_init in zip(['atlas_ngc_poly.npy', 'qso_sgc_poly.npy'], [115, 0]):
+            pol = np.load(os.path.join(mask_dir, name), allow_pickle=True).T 
+            pol[0] -= np.radians(rot_init)
+            pol[0] += np.radians(rot)
+            pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
+            pol[0][pol[0] > np.pi] -= np.pi*2
+            ax.plot(pol[0], pol[1], color=colors_survey['qso'], lw=1, zorder=10)
+        ax.plot(pol[0], pol[1], color=colors_survey['qso'], lw=1, zorder=10, label='QSO')
+        
+    if desi_footprint:
+        d = Table.read(os.path.join(mask_dir,"desi-14k-footprint-dark.ecsv"))
+        for cap in ["NGC", "SGC"]:
+            sel = d["CAP"] == cap
+            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='darkblue', lw=1, zorder=10)
+            ax.add_patch(Polygon(np.array([projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel])]).T, facecolor='darkblue', alpha=0.2))
+        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color=colors_survey['DESI'], lw=1, zorder=10, label='DESI')
+
+    if lsst_fp:
+        ra = np.array([ 75.234375, 76.640625, 78.046875, 79.453125, 80.859375,
+                        82.265625, 83.671875, 85.078125, 86.484375, 87.890625,
+                        89.296875, 90.703125, 92.109375, 93.515625, 94.921875,
+                        96.328125, 97.734375, 99.140625, 100.546875, 101.953125,
+                        103.359375, 104.765625, 68.90625 , 70.3125 , 71.71875 ,
+                        73.125 , 74.53125 , 75.9375 , 77.34375 , 78.75 ,
+                        80.15625 , 81.5625 , 82.96875 , 84.375 , 85.78125 ,
+                        87.1875 , 88.59375 , 90. , 91.40625 , 92.8125 ,
+                        94.21875 , 95.625 , 97.03125 , 98.4375 , 99.84375 ,
+                        101.25 , 102.65625 , 104.0625 , 105.46875 , 106.875 ,
+                        108.28125 , 109.6875 , 111.09375 , 63.984375, 65.390625,
+                        66.796875, 68.203125, 69.609375, 71.015625, 72.421875,
+                        73.828125, 106.171875, 107.578125, 108.984375, 110.390625,
+                        111.796875, 113.203125, 114.609375, 116.015625, 60.46875 ,
+                        61.875 , 63.28125 , 64.6875 , 66.09375 , 67.5 ,
+                        112.5 , 113.90625 , 115.3125 , 116.71875 , 118.125 ,
+                        119.53125 , 56.953125, 58.359375, 59.765625, 61.171875,
+                        62.578125, 117.421875, 118.828125, 120.234375, 121.640625,
+                        123.046875, 53.4375 , 54.84375 , 56.25 , 57.65625 ,
+                        59.0625 , 120.9375 , 122.34375 , 123.75 , 125.15625 ,
+                        126.5625 , 49.921875, 51.328125, 52.734375, 54.140625,
+                        55.546875, 124.453125, 125.859375, 127.265625, 128.671875,
+                        130.078125, 47.8125 , 49.21875 , 50.625 , 52.03125 ,
+                        127.96875 , 129.375 , 130.78125 , 132.1875 , 44.296875,
+                        45.703125, 47.109375, 48.515625, 131.484375, 132.890625,
+                        134.296875, 135.703125, 42.1875 , 43.59375 , 45. ,
+                        46.40625 , 133.59375 , 135. , 136.40625 , 137.8125 ,
+                        40.078125, 41.484375, 42.890625, 137.109375, 138.515625,
+                        139.921875, 37.96875 , 39.375 , 40.78125 , 139.21875 ,
+                        140.625 , 142.03125 , 35.859375, 37.265625, 38.671875,
+                        141.328125, 142.734375, 144.140625, 33.75 , 35.15625 ,
+                        36.5625 , 143.4375 , 144.84375 , 146.25 , 31.640625,
+                        33.046875, 34.453125, 145.546875, 146.953125, 148.359375,
+                        29.53125 , 30.9375 , 32.34375 , 147.65625 , 149.0625 ,
+                        150.46875 , 28.828125, 30.234375, 149.765625, 151.171875,
+                        26.71875 , 28.125 , 151.875 , 153.28125 , 185.625 ,
+                        187.03125 , 24.609375, 26.015625, 27.421875, 152.578125,
+                        153.984375, 155.390625, 183.515625, 184.921875, 186.328125,
+                        187.734375, 189.140625, 22.5 , 23.90625 , 25.3125 ,
+                        154.6875 , 156.09375 , 157.5 , 182.8125 , 184.21875 ,
+                        188.4375 , 189.84375 , 191.25 , 21.796875, 23.203125,
+                        156.796875, 158.203125, 182.109375, 190.546875, 191.953125,
+                        19.6875 , 21.09375 , 158.90625 , 160.3125 , 181.40625 ,
+                        192.65625 , 17.578125, 18.984375, 20.390625, 159.609375,
+                        161.015625, 162.421875, 180.703125, 193.359375, 16.875 ,
+                        18.28125 , 161.71875 , 163.125 , 180. , 194.0625 ,
+                        14.765625, 16.171875, 163.828125, 165.234375, 179.296875,
+                        193.359375, 14.0625 , 15.46875 , 164.53125 , 165.9375 ,
+                        178.59375 , 194.0625 , 11.953125, 13.359375, 166.640625,
+                        168.046875, 179.296875, 194.765625, 9.84375 , 11.25 ,
+                        12.65625 , 167.34375 , 168.75 , 170.15625 , 178.59375 ,
+                        194.0625 , 9.140625, 10.546875, 169.453125, 170.859375,
+                        172.265625, 173.671875, 175.078125, 176.484375, 177.890625,
+                        194.765625, 196.171875, 197.578125, 198.984375, 200.390625,
+                        201.796875, 203.203125, 204.609375, 206.015625, 207.421875,
+                        208.828125, 210.234375, 211.640625, 213.046875, 214.453125,
+                        215.859375, 217.265625, 218.671875, 220.078125, 221.484375,
+                        222.890625, 224.296875, 225.703125, 227.109375, 228.515625,
+                        229.921875, 231.328125, 232.734375, 234.140625, 235.546875,
+                        236.953125, 238.359375, 239.765625, 241.171875, 242.578125,
+                        243.984375, 245.390625, 246.796875, 248.203125, 249.609375,
+                        251.015625, 252.421875, 253.828125, 255.234375, 256.640625,
+                        258.046875, 259.453125, 260.859375, 262.265625, 263.671875,
+                        265.078125, 266.484375, 267.890625, 269.296875, 270.703125,
+                        272.109375, 273.515625, 274.921875, 276.328125, 277.734375,
+                        279.140625, 280.546875, 281.953125, 283.359375, 284.765625,
+                        286.171875, 287.578125, 288.984375, 290.390625, 291.796875,
+                        293.203125, 294.609375, 296.015625, 297.421875, 298.828125,
+                        300.234375, 301.640625, 7.03125 , 8.4375 , 171.5625 ,
+                        172.96875 , 174.375 , 175.78125 , 177.1875 , 195.46875 ,
+                        196.875 , 198.28125 , 199.6875 , 201.09375 , 202.5 ,
+                        203.90625 , 205.3125 , 206.71875 , 208.125 , 209.53125 ,
+                        210.9375 , 212.34375 , 213.75 , 215.15625 , 216.5625 ,
+                        217.96875 , 219.375 , 220.78125 , 222.1875 , 223.59375 ,
+                        225. , 226.40625 , 227.8125 , 229.21875 , 230.625 ,
+                        232.03125 , 233.4375 , 234.84375 , 236.25 , 237.65625 ,
+                        239.0625 , 240.46875 , 241.875 , 243.28125 , 244.6875 ,
+                        246.09375 , 247.5 , 248.90625 , 250.3125 , 251.71875 ,
+                        253.125 , 254.53125 , 255.9375 , 257.34375 , 258.75 ,
+                        260.15625 , 261.5625 , 262.96875 , 264.375 , 265.78125 ,
+                        267.1875 , 268.59375 , 270. , 271.40625 , 272.8125 ,
+                        274.21875 , 275.625 , 277.03125 , 278.4375 , 279.84375 ,
+                        281.25 , 282.65625 , 284.0625 , 285.46875 , 286.875 ,
+                        288.28125 , 289.6875 , 291.09375 , 292.5 , 293.90625 ,
+                        295.3125 , 296.71875 , 298.125 , 299.53125 , 300.9375 ,
+                        6.328125, 7.734375, 300.234375, 4.21875 , 5.625 ,
+                        300.9375 , 3.515625, 4.921875, 300.234375, 1.40625 ,
+                        2.8125 , 299.53125 , 0.703125, 2.109375, 298.828125,
+                        0. , 299.53125 , 358.59375 , 298.828125, 357.890625,
+                        359.296875, 298.125 , 355.78125 , 357.1875 , 298.828125,
+                        355.078125, 356.484375, 298.125 , 352.96875 , 354.375 ,
+                        297.421875, 352.265625, 353.671875, 298.125 , 350.15625 ,
+                        351.5625 , 297.421875, 349.453125, 350.859375, 298.125 ,
+                        347.34375 , 348.75 , 297.421875, 346.640625, 348.046875,
+                        298.125 , 344.53125 , 345.9375 , 297.421875, 343.828125,
+                        345.234375, 298.125 , 299.53125 , 300.9375 , 302.34375 ,
+                        303.75 , 305.15625 , 306.5625 , 307.96875 , 309.375 ,
+                        310.78125 , 312.1875 , 313.59375 , 315. , 316.40625 ,
+                        317.8125 , 319.21875 , 320.625 , 322.03125 , 323.4375 ,
+                        324.84375 , 326.25 , 327.65625 , 329.0625 , 330.46875 ,
+                        331.875 , 333.28125 , 334.6875 , 336.09375 , 337.5 ,
+                        338.90625 , 340.3125 , 341.71875 , 343.125 , 298.828125,
+                        300.234375, 301.640625, 303.046875, 304.453125, 305.859375,
+                        307.265625, 308.671875, 310.078125, 311.484375, 312.890625,
+                        314.296875, 315.703125, 317.109375, 318.515625, 319.921875,
+                        321.328125, 322.734375, 324.140625, 325.546875, 326.953125,
+                        328.359375, 329.765625, 331.171875, 332.578125, 333.984375,
+                        335.390625, 336.796875, 338.203125, 339.609375, 341.015625,
+                        342.421875])+rot
+        dec = np.array([32.7971683 , 32.7971683 , 32.7971683 , 32.7971683 , 32.7971683 ,
+                        32.7971683 , 32.7971683 , 32.7971683 , 32.7971683 , 32.7971683 ,
+                        32.7971683 , 32.7971683 , 32.7971683 , 32.7971683 , 32.7971683 ,
+                        32.7971683 , 32.7971683 , 32.7971683 , 32.7971683 , 32.7971683 ,
+                        32.7971683 , 32.7971683 , 32.08995126, 32.08995126, 32.08995126,
+                        32.08995126, 32.08995126, 32.08995126, 32.08995126, 32.08995126,
+                        32.08995126, 32.08995126, 32.08995126, 32.08995126, 32.08995126,
+                        32.08995126, 32.08995126, 32.08995126, 32.08995126, 32.08995126,
+                        32.08995126, 32.08995126, 32.08995126, 32.08995126, 32.08995126,
+                        32.08995126, 32.08995126, 32.08995126, 32.08995126, 32.08995126,
+                        32.08995126, 32.08995126, 32.08995126, 31.38816646, 31.38816646,
+                        31.38816646, 31.38816646, 31.38816646, 31.38816646, 31.38816646,
+                        31.38816646, 31.38816646, 31.38816646, 31.38816646, 31.38816646,
+                        31.38816646, 31.38816646, 31.38816646, 31.38816646, 30.69158768,
+                        30.69158768, 30.69158768, 30.69158768, 30.69158768, 30.69158768,
+                        30.69158768, 30.69158768, 30.69158768, 30.69158768, 30.69158768,
+                        30.69158768, 30. , 30. , 30. , 30. ,
+                        30. , 30. , 30. , 30. , 30. ,
+                        30. , 29.31319896, 29.31319896, 29.31319896, 29.31319896,
+                        29.31319896, 29.31319896, 29.31319896, 29.31319896, 29.31319896,
+                        29.31319896, 28.63098984, 28.63098984, 28.63098984, 28.63098984,
+                        28.63098984, 28.63098984, 28.63098984, 28.63098984, 28.63098984,
+                        28.63098984, 27.95318688, 27.95318688, 27.95318688, 27.95318688,
+                        27.95318688, 27.95318688, 27.95318688, 27.95318688, 27.27961274,
+                        27.27961274, 27.27961274, 27.27961274, 27.27961274, 27.27961274,
+                        27.27961274, 27.27961274, 26.61009781, 26.61009781, 26.61009781,
+                        26.61009781, 26.61009781, 26.61009781, 26.61009781, 26.61009781,
+                        25.94447977, 25.94447977, 25.94447977, 25.94447977, 25.94447977,
+                        25.94447977, 25.28260304, 25.28260304, 25.28260304, 25.28260304,
+                        25.28260304, 25.28260304, 24.62431835, 24.62431835, 24.62431835,
+                        24.62431835, 24.62431835, 24.62431835, 23.96948232, 23.96948232,
+                        23.96948232, 23.96948232, 23.96948232, 23.96948232, 23.31795707,
+                        23.31795707, 23.31795707, 23.31795707, 23.31795707, 23.31795707,
+                        22.66960987, 22.66960987, 22.66960987, 22.66960987, 22.66960987,
+                        22.66960987, 22.02431284, 22.02431284, 22.02431284, 22.02431284,
+                        21.38194258, 21.38194258, 21.38194258, 21.38194258, 21.38194258,
+                        21.38194258, 20.74237995, 20.74237995, 20.74237995, 20.74237995,
+                        20.74237995, 20.74237995, 20.74237995, 20.74237995, 20.74237995,
+                        20.74237995, 20.74237995, 20.10550979, 20.10550979, 20.10550979,
+                        20.10550979, 20.10550979, 20.10550979, 20.10550979, 20.10550979,
+                        20.10550979, 20.10550979, 20.10550979, 19.47122063, 19.47122063,
+                        19.47122063, 19.47122063, 19.47122063, 19.47122063, 19.47122063,
+                        18.83940455, 18.83940455, 18.83940455, 18.83940455, 18.83940455,
+                        18.83940455, 18.20995686, 18.20995686, 18.20995686, 18.20995686,
+                        18.20995686, 18.20995686, 18.20995686, 18.20995686, 17.58277601,
+                        17.58277601, 17.58277601, 17.58277601, 17.58277601, 17.58277601,
+                        16.9577633 , 16.9577633 , 16.9577633 , 16.9577633 , 16.9577633 ,
+                        16.9577633 , 16.33482278, 16.33482278, 16.33482278, 16.33482278,
+                        16.33482278, 16.33482278, 15.71386105, 15.71386105, 15.71386105,
+                        15.71386105, 15.71386105, 15.71386105, 15.0947871 , 15.0947871 ,
+                        15.0947871 , 15.0947871 , 15.0947871 , 15.0947871 , 15.0947871 ,
+                        15.0947871 , 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 14.47751219, 14.47751219, 14.47751219,
+                        14.47751219, 14.47751219, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.86194967, 13.86194967, 13.86194967, 13.86194967, 13.86194967,
+                        13.24801491, 13.24801491, 13.24801491, 12.63562509, 12.63562509,
+                        12.63562509, 12.02469918, 12.02469918, 12.02469918, 11.41515774,
+                        11.41515774, 11.41515774, 10.80692287, 10.80692287, 10.80692287,
+                        10.19991809, 10.19991809, 10.19991809, 9.59406823, 9.59406823,
+                        9.59406823, 8.98929935, 8.98929935, 8.98929935, 8.38553865,
+                        8.38553865, 8.38553865, 7.78271439, 7.78271439, 7.78271439,
+                        7.18075578, 7.18075578, 7.18075578, 6.57959294, 6.57959294,
+                        6.57959294, 5.9791568 , 5.9791568 , 5.9791568 , 5.37937899,
+                        5.37937899, 5.37937899, 4.78019185, 4.78019185, 4.78019185,
+                        4.18152827, 4.18152827, 4.18152827, 3.5833217 , 3.5833217 ,
+                        3.5833217 , 2.98550601, 2.98550601, 2.98550601, 2.98550601,
+                        2.98550601, 2.98550601, 2.98550601, 2.98550601, 2.98550601,
+                        2.98550601, 2.98550601, 2.98550601, 2.98550601, 2.98550601,
+                        2.98550601, 2.98550601, 2.98550601, 2.98550601, 2.98550601,
+                        2.98550601, 2.98550601, 2.98550601, 2.98550601, 2.98550601,
+                        2.98550601, 2.98550601, 2.98550601, 2.98550601, 2.98550601,
+                        2.98550601, 2.98550601, 2.98550601, 2.98550601, 2.38801546,
+                        2.38801546, 2.38801546, 2.38801546, 2.38801546, 2.38801546,
+                        2.38801546, 2.38801546, 2.38801546, 2.38801546, 2.38801546,
+                        2.38801546, 2.38801546, 2.38801546, 2.38801546, 2.38801546,
+                        2.38801546, 2.38801546, 2.38801546, 2.38801546, 2.38801546,
+                        2.38801546, 2.38801546, 2.38801546, 2.38801546, 2.38801546,
+                        2.38801546, 2.38801546, 2.38801546, 2.38801546, 2.38801546,
+                        2.38801546])
+        ra = np.remainder(ra + 360, 360)
+        ra[ra > 180] -= 360
+        #   plt.scatter(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), s=3, color=colors[8])
+        ax.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), -np.pi/2, interpolate=True, color=colors_survey['LSST'], alpha=0.5, label='LSST', ls='-', lw=0, zorder=20)
+    from matplotlib.ticker import MaxNLocator
+
+    if desi_footprint_ext:
+        import pandas as pd
+        d = pd.read_csv(os.path.join(mask_dir,'DESI_ext_fp.txt'), sep=' ', comment='#')
+        for cap in ["NGC", "SGC"]:
+            sel = d["CAP"] == cap
+            _ = ax.scatter(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color=colors_survey['DESI_ext'], s=0.1, zorder=10, alpha=0.2)
+        
+        handles, labels = ax.get_legend_handles_labels()
+        handles +=[mlines.Line2D([], [], color=colors_survey['DESI_ext'], linestyle='-', lw=1, alpha=0.6)]
+        labels += ['DESI-extension']
+
+    if euclid_fp:
+        for name in glob.glob(os.path.join(mask_dir, '*euclid*footprint*')):
+            rot_init = 110 
+            pol = np.load(name, allow_pickle=True).T 
+            pol[0] -= np.radians(rot_init)
+            pol[0] += np.radians(rot)
+            pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
+            pol[0][pol[0] > np.pi] -= np.pi*2
+            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color=colors_survey['euclid'], s=1, zorder=10, marker='o')
+        if handles is None:
+            handles, labels = ax.get_legend_handles_labels()
+        handles +=[mlines.Line2D([], [], color=colors_survey['euclid'], linestyle='-', lw=1)]
+        labels += ['Euclid']
+    if des_footprint:
+        for name in glob.glob(os.path.join(mask_dir, 'des_footprint.npy')):
+            pol = np.load(name, allow_pickle=True)
+            pol[0] *= -1
+            pol[0] += rot
+            pol[0] = np.remainder(pol[0] + 360, 360)
+            pol[0][pol[0] > 180] -= 360
+            ax.add_patch(Polygon(np.radians(pol).T, facecolor=colors_survey['DES'], alpha=0))
+            ax.plot(np.radians(pol[0]), np.radians(pol[1]), color=colors_survey['DES'], lw=1.5, zorder=100, label='DES')
+
+        if handles is None:
+            handles, labels = ax.get_legend_handles_labels()
+        handles +=[mlines.Line2D([], [], color=colors_survey['DES'], linestyle='-', lw=1)]
+        labels += ['DES']
+
+        
+    if show_legend:
+        if handles is not None:
+            ax.legend(handles, labels, ncol=2, loc='upper left', bbox_to_anchor=(0.6, 0.7, 0, 0.4))
+        else:
+            ax.legend(ncol=2, loc='upper left', bbox_to_anchor=(0.6, 0.7, 0, 0.4))
+
+    tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
+    tick_labels = np.remainder(tick_labels + 360 + rot, 360)
+    tick_labels = np.array([f'{lab}°' for lab in tick_labels])
+    ax.set_xticklabels(tick_labels)
+    # ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+
+
+    ax.set_xlabel('R.A. [deg]', labelpad=xlabel_labelpad, fontsize=fontsize)
+    ax.xaxis.set_label_position('top')
+    ax.set_ylabel('Dec. [deg]', fontsize=fontsize)
+    # ax.yaxis.set_major_locator(plt.MaxNLocator(7))
+
+    ax.grid(True)
+    plt.tight_layout()
+    if title:
+        plt.title(title)
+    if filename is not None:
+        plt.savefig(filename, facecolor='w', bbox_inches='tight', pad_inches=0.1, dpi=400)
+    # if show:
+        # plt.show()
+    # else:
+    #     plt.close()
+    if handles is not None:
+        return ax, handles, labels
