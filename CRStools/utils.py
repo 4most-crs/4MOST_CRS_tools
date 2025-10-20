@@ -62,6 +62,7 @@ def get_4most_bg_sel_v2(cat, mag_r_lim=19.25):
     sel &= ~(cat['MASKBITS'] & 2**11 > 0)
     #maskbit arround large galaxies
     sel &= ~(cat['MASKBITS'] & 2**12 > 0)
+    #maskbit arround globular clusters
     sel &= ~(cat['MASKBITS'] & 2**13 > 0)
 
     #fiber mag cut
@@ -240,7 +241,8 @@ def get_desi_bright_bgs_sel(cat, mag_r_lim=19.5):
     sel |= not_in_gaia
 
     #maskbit arround bright stars
-    sel &= ~(cat['MASKBITS'] & 2**1 > 0) 
+    sel &= ~(cat['MASKBITS'] & 2**1 > 0)
+    sel &= ~(cat['MASKBITS'] & 2**13 > 0) 
 
     #fiber mag cut
     fib_mag_r = 22.5-2.5*np.log10(cat['FIBERFLUX_R']/cat['MW_TRANSMISSION_R'])
@@ -315,8 +317,7 @@ def get_desi_lrg_sel(data): #shift = 0.0825
     mask_tot_ls &= ~(data['MASKBITS'] & 2**1 > 0)
     mask_tot_ls &= ~(data['MASKBITS'] & 2**12 > 0)
     mask_tot_ls &= ~(data['MASKBITS'] & 2**13 > 0)
-    
-    mask_tot_ls &= ~mask
+    mask_tot_ls &= ~(data['WISEMASK_W1'] > 0)
     
     return mask_tot_ls
 
@@ -381,6 +382,11 @@ def get_skyaera(polygon, seed=42):
     mask = polygon.contains_points(np.array([ra,dec]).T)
     return mask.sum()*full_sky/mask.size
 
+def is_in_DES(ra, dec, polygon_dir=None):
+    if polygon_dir is None: 
+         polygon_dir = os.path.join(os.path.dirname(__file__), 'mask_fp')
+    polygon =   (np.load(os.path.join(polygon_dir, 'des_footprint.npy'), allow_pickle=True).T)
+    return polygon.contains_points(np.array([ra, dec]).T)
 
 def get_4most_s8foot(ra, dec, regions=['ngc', 'sgc'], if_deg=True, polygon_dir=None):
     '''
@@ -828,8 +834,17 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             ax.plot(np.radians(ra), np.radians(dec), linestyle=':', linewidth=0.8, color='navy')
 
     if fourmost_footprint:
-        
-        for reg in ['ngc','sgc']:
+        if isinstance(fourmost_footprint, bool):
+            regions = ['ngc','sgc']
+        elif fourmost_footprint in ['ngc','sgc']:
+            regions = fourmost_footprint
+        if isinstance(regions, str):
+            regions = [regions]
+        elif isinstance(regions, list):
+            pass
+        else:
+            raise ValueError(f'"fourmost_footprint" need to be "True", "ngc" or "sgc" not {fourmost_footprint}')
+        for reg in regions:
             pol = np.load(os.path.join(mask_dir, f'4most_{reg}_newfootprint.npy'), allow_pickle=True).T
             mask_decm20 = pol[1] < np.radians(-20)
             ra, dec = pol[0][mask_decm20], pol[1][mask_decm20]
@@ -837,9 +852,9 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             ra += np.radians(rot)
             ra = np.remainder(ra + np.pi*2, np.pi*2)
             ra[ra > np.pi] -= np.pi*2
-            ax.plot(ra, dec, color='tab:red', lw=2, zorder=100)
-            ax.add_patch(Polygon(pol.T[mask_decm20], facecolor='tab:red', alpha=0.2))
-        ax.plot(ra, dec, color='tab:red', lw=2, zorder=100, label='4MOST-CRS')
+            ax.plot(ra, dec, color='tab:red', lw=1, zorder=100)
+            ax.add_patch(Polygon(np.array([ra,dec]).T, facecolor='tab:red', alpha=0.2))
+        ax.plot(ra, dec, color='tab:red', lw=1, zorder=100, label='4MOST-CRS')
 
     if qso_dr10_fp:
         pol = np.load(os.path.join(mask_dir, 'qso_dr10_sgc_poly.npy'), allow_pickle=True).T 
@@ -872,9 +887,9 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         d = Table.read(os.path.join(mask_dir,"desi-14k-footprint-dark.ecsv"))
         for cap in ["NGC", "SGC"]:
             sel = d["CAP"] == cap
-            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='darkblue', lw=2, zorder=10)
-            ax.add_patch(Polygon(np.array([projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel])]).T, facecolor='darkblue', alpha=0.2))
-        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='darkblue', lw=1.5, zorder=10, label='DESI')
+            _ = ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='dodgerblue', lw=0.8, zorder=10)
+            ax.add_patch(Polygon(np.array([projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel])]).T, facecolor='dodgerblue', alpha=0.2))
+        ax.plot(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='dodgerblue', lw=0.8, zorder=10, label='DESI')
 
     if lsst_fp:
         ra = np.array([ 75.234375, 76.640625, 78.046875, 79.453125, 80.859375,
@@ -1098,17 +1113,17 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
         ra = np.remainder(ra + 360, 360)
         ra[ra > 180] -= 360
         #   plt.scatter(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), s=3, color=colors[8])
-        ax.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), -np.pi/2, interpolate=True, color='#c59a6e', alpha=0.4, label='LSST', ls='-', lw=0, zorder=20)
+        ax.fill_between(np.radians(ra[ra.argsort()]),np.radians(dec[ra.argsort()]), -np.pi/2, interpolate=True, color='#c59a6e', alpha=0.3, label='LSST', ls='-', lw=0, zorder=20)
         
     if desi_footprint_ext:
         import pandas as pd
         d = pd.read_csv(os.path.join(mask_dir,'DESI_ext_fp.txt'), sep=' ', comment='#')
         for cap in ["NGC", "SGC"]:
             sel = d["CAP"] == cap
-            _ = ax.scatter(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='dodgerblue', s=0.3, zorder=10, alpha=0.2)
+            _ = ax.scatter(projection_ra(d["RA"][sel], ra_center=rot), projection_dec(d["DEC"][sel]), color='darkblue', s=0.2, zorder=10, alpha=0.3)
         
         handles, labels = ax.get_legend_handles_labels()
-        handles +=[mlines.Line2D([], [], color='dodgerblue', linestyle='-', lw=2, alpha=0.3)]
+        handles +=[mlines.Line2D([], [], color='darkblue', linestyle='-', lw=0.8, alpha=1)]
         labels += ['DESI-extension']
 
     if euclid_fp:
@@ -1119,10 +1134,10 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] += np.radians(rot)
             pol[0] = np.remainder(pol[0] + np.pi*2, np.pi*2)
             pol[0][pol[0] > np.pi] -= np.pi*2
-            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color='#189fae', s=0.8, zorder=10, marker='o')
+            ax.scatter(pol[0][pol[0].argsort()], pol[1][pol[0].argsort()], color='#FF8C00', s=0.3, zorder=10, marker='.')
         if handles is None:
             handles, labels = ax.get_legend_handles_labels()
-        handles +=[mlines.Line2D([], [], color='#189fae', linestyle='-', lw=2)]
+        handles +=[mlines.Line2D([], [], color='#FF8C00', linestyle='-', lw=0.8)]
         labels += ['Euclid']
     if des_footprint:
         for name in glob.glob(os.path.join(mask_dir, 'des_footprint.npy')):
@@ -1132,7 +1147,7 @@ def plot_moll(hmap, whmap=None, min=None, max=None, nest=False, title='', label=
             pol[0] = np.remainder(pol[0] + 360, 360)
             pol[0][pol[0] > 180] -= 360
             ax.add_patch(Polygon(np.radians(pol).T, facecolor='darkred', alpha=0))
-            ax.plot(np.radians(pol[0]), np.radians(pol[1]), color='darkred', lw=2, zorder=100, label='DES')
+            ax.plot(np.radians(pol[0]), np.radians(pol[1]), color='darkred', lw=0.8, zorder=100, label='DES')
 
         if handles is None:
             handles, labels = ax.get_legend_handles_labels()
@@ -1277,7 +1292,7 @@ def get_wmap(targets, features_pixmap, mask_pixmap, tracer, regions=['DECALS', '
 
     for reg in regions:
         if reg.upper() == 'DECALS':
-            region = ~mask_pixmap['ISDES'] & mask_pixmap[f'IS4MOST_{tracer}']
+            region = ~mask_pixmap['ISDES'] & mask_pixmap[f'in_S8']
         elif reg.upper() == 'DES':
             region = mask_pixmap['ISDES']
 
@@ -1285,7 +1300,7 @@ def get_wmap(targets, features_pixmap, mask_pixmap, tracer, regions=['DECALS', '
 
         keep_to_train = (fracarea > np.quantile(fracarea[fracarea>0], q=0.05)) & (targets > 0) & region 
 
-        region_to_pred = keep_to_train & mask_pixmap[f'IS4MOST_{tracer}']
+        region_to_pred = keep_to_train & mask_pixmap[f'in_S8']
 
         #utils.plot_moll(utils.apply_mask_to_hpmap(targets, mask=keep_to_train), rot=115, min=300, max=600, desi_footprint=False, fourmost_footprint=True, label='deg-2', nest=True)
 
@@ -1330,6 +1345,14 @@ def get_weight_from_wmap(ra, dec, wmap, nest=True, lonlat=True):
     ipix = hp.ang2pix(nside, ra, dec, nest=nest, lonlat=lonlat)
     return wmap[ipix]
 
+
+def get_wmap_from_weights(ra, dec, weight, nside=128, nest=True, lonlat=True):
+    ipix = hp.ang2pix(nside, ra, dec, nest=nest, lonlat=lonlat)
+    w_map = np.zeros(hp.nside2npix(nside))
+    seen = set()
+    mask = [(val not in seen and not seen.add(val)) for val in ipix]
+    w_map[ipix[mask]] = weight[mask]
+    return w_map
 
 def plot_kfold(keep_to_train, nside=128, nfold=6):
     
