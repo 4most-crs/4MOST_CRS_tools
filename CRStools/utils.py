@@ -167,7 +167,12 @@ def get_4most_bg_sel_v2(cat, mag_r_lim=19.25):
 #     return sel
 
 
-def get_4most_lrg_new_sel(data, shift = 0.06): #shift = 0.0825
+def get_4most_lrg_new_sel(data, shift = 0.06, usebitmask=True): #shift = 0.0825
+
+    try:
+        columns = data.columns()
+    except (AttributeError, TypeError):
+        columns = data.keys()
 
     gflux = data['FLUX_G']
     gMW = data['MW_TRANSMISSION_G']
@@ -201,7 +206,7 @@ def get_4most_lrg_new_sel(data, shift = 0.06): #shift = 0.0825
     #mask_tot_ls &= (photz > 0) & (photz < 1.4)
 
     # cut according Nobs,
-    if 'NOBS_G' in data.columns():
+    if 'NOBS_G' in columns:
         mask = (data['NOBS_G'] == 0) | (data['NOBS_R'] == 0) | (data['NOBS_Z'] == 0)
         mask_tot_ls &= ~mask
     
@@ -212,23 +217,25 @@ def get_4most_lrg_new_sel(data, shift = 0.06): #shift = 0.0825
     # Additionnal cuts from the DESI LRG TS
     mask_tot_ls &= fiberz > 17.5
     # mask_tot_ls &= (data['GAIA_PHOT_G_MEAN_MAG'] > 18) | (data['GAIA_PHOT_G_MEAN_MAG'] == 0) 
-    mask_tot_ls &= data['GAIA_PHOT_G_MEAN_MAG'] == 0
-    mask_tot_ls &= ~(data['MASKBITS'] & 2**1 > 0)
-    mask_tot_ls &= ~(data['MASKBITS'] & 2**11 > 0)
-    mask_tot_ls &= ~(data['MASKBITS'] & 2**12 > 0)
-    mask_tot_ls &= ~(data['MASKBITS'] & 2**13 > 0)
-    mask_tot_ls &= ~(data['WISEMASK_W1'] > 0)
+
+    if usebitmask:
+        mask_tot_ls &= data['GAIA_PHOT_G_MEAN_MAG'] == 0
+        mask_tot_ls &= ~(data['MASKBITS'] & 2**1 > 0)
+        mask_tot_ls &= ~(data['MASKBITS'] & 2**11 > 0)
+        mask_tot_ls &= ~(data['MASKBITS'] & 2**12 > 0)
+        mask_tot_ls &= ~(data['MASKBITS'] & 2**13 > 0)
+        if 'WISEMASK_W1' in columns:
+            mask_tot_ls &= ~(data['WISEMASK_W1'] > 0)
     
     # Additionnal cut on stars with parallax or pmra or pmdec !=0 and snr >3
-    snr_par = np.abs(data['PARALLAX']*np.sqrt(data['PARALLAX_IVAR']))
-    snr_pmra = np.abs(data['PMRA']*np.sqrt(data['PMRA_IVAR']))
-    snr_pmdec = np.abs(data['PMDEC']*np.sqrt(data['PMDEC_IVAR']))
-    mask = data['PARALLAX'] != 0
-    mask &= (snr_par > 3) | (snr_pmra > 3) | (snr_pmdec > 3) 
-    mask_tot_ls &= ~mask
+        snr_par = np.abs(data['PARALLAX']*np.sqrt(data['PARALLAX_IVAR']))
+        snr_pmra = np.abs(data['PMRA']*np.sqrt(data['PMRA_IVAR']))
+        snr_pmdec = np.abs(data['PMDEC']*np.sqrt(data['PMDEC_IVAR']))
+        mask = data['PARALLAX'] != 0
+        mask &= (snr_par > 3) | (snr_pmra > 3) | (snr_pmdec > 3) 
+        mask_tot_ls &= ~mask
     
-    return mask_tot_ls
-	
+    return mask_tot_ls	
 
 def get_desi_bright_bgs_sel(cat, mag_r_lim=19.5):
     
@@ -269,9 +276,14 @@ def get_desi_bright_bgs_sel(cat, mag_r_lim=19.5):
 
     sel &= mag_r < mag_r_lim
     return sel	
-   
 
+   
 def get_desi_lrg_sel(data): #shift = 0.0825
+
+    try:
+        columns = data.columns()
+    except (AttributeError, TypeError):
+        columns = data.keys()
 
     gflux = data['FLUX_G']
     gMW = data['MW_TRANSMISSION_G']
@@ -305,8 +317,9 @@ def get_desi_lrg_sel(data): #shift = 0.0825
     #mask_tot_ls &= (photz > 0) & (photz < 1.4)
 
     # cut according Nobs,
-    mask = (data['NOBS_G'] == 0) | (data['NOBS_R'] == 0) | (data['NOBS_Z'] == 0) | (data['NOBS_W1'] == 0)
-    mask_tot_ls &= ~mask
+    if 'NOBS_G' in columns:
+        mask = (data['NOBS_G'] == 0) | (data['NOBS_R'] == 0) | (data['NOBS_Z'] == 0) | (data['NOBS_W1'] == 0)
+        mask_tot_ls &= ~mask
     # cut according bad photometry
     mask = (data['FLUX_IVAR_R'] < 0) | (data['FLUX_IVAR_Z'] < 0) | (data['FLUX_IVAR_W1'] < 0) | (data['FLUX_IVAR_G'] < 0)
     mask_tot_ls &= ~mask
@@ -369,7 +382,6 @@ def projection_dec(dec):
             `dec` converted to plot coordinates.
         """
         return np.radians(dec)
-
     
 def get_skyaera(polygon, seed=42):
     '''

@@ -1,4 +1,5 @@
-scikit-learn
-fitsio
+matplotlib
+numpy
 healpy
 astropy
+scikit-learn

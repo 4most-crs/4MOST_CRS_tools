@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: CRStools
 Version: 0.0.1
 Summary: Tools for 4MOST-CRS work
@@ -6,7 +6,14 @@ Home-page: https://github.com/4most-crs/4MOST_CRS_tools
 Author: Rocher Antoine
 Author-email: antoine.rocher@epfl.ch
 License: GPLv3
-Requires-Dist: scikit-learn
-Requires-Dist: fitsio
+Requires-Dist: matplotlib
+Requires-Dist: numpy
 Requires-Dist: healpy
 Requires-Dist: astropy
+Requires-Dist: scikit-learn
+Dynamic: author
+Dynamic: author-email
+Dynamic: home-page
+Dynamic: license
+Dynamic: requires-dist
+Dynamic: summary
